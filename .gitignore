@@ -1,0 +1,13 @@
+moneytrack.db*
+*.sqlite3
+*.db
+*.backup*
+*.broken
+*.before_*
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+app.py.*
+add_*.py
