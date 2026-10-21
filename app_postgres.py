@@ -1689,6 +1689,15 @@ def accounts():
             balance = float(request.form.get("balance", "0"))
             if name and len(name) <= 60:
                 with connect_db() as db:
+                    account_count = db.execute(
+                        "SELECT COUNT(*) FROM accounts WHERE user_id=?",
+                        (user["id"],)
+                    ).fetchone()[0]
+
+                    if account_count >= 2 and not has_access(user):
+                        flash("На бесплатном тарифе можно иметь максимум 2 счёта. Удали один из счетов или подключи подписку.")
+                        return redirect(url_for("accounts"))
+
                     db.execute("""
                         INSERT INTO accounts(user_id,name,balance)
                         VALUES(?,?,?)
