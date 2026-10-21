@@ -1241,28 +1241,39 @@ def register():
     <div class="card">
     <h2>Регистрация</h2>
     <form method="post">
-        <input name="phone" placeholder="Номер телефона (необязательно)">
-        <input name="email" type="email" placeholder="Электронная почта (необязательно)">
+        <input name="contact"
+               placeholder="Введите номер телефона или email"
+               autocomplete="username" required>
         <input name="password" type="password"
-               placeholder="Пароль от приложения" required>
-        <button>Зарегистрироваться</button>
+               placeholder="Пароль от приложения"
+               autocomplete="new-password" required>
+        <button type="submit">Зарегистрироваться</button>
     </form>
     <a href="/login">Уже есть аккаунт? Войти</a>
     </div>
     """
 
     if request.method == "POST":
-        phone = request.form.get("phone", "").strip() or None
-        email = request.form.get("email", "").strip().lower() or None
+        contact = request.form.get("contact", "").strip()
         password = request.form.get("password", "")
 
-        if bool(phone) == bool(email):
-            flash("Укажи либо номер телефона, либо электронную почту.")
+        if not contact:
+            flash("Введи номер телефона или email.")
             return redirect(url_for("register"))
 
-        if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-            flash("Укажи корректный адрес электронной почты.")
-            return redirect(url_for("register"))
+        phone = None
+        email = None
+
+        if "@" in contact:
+            email = contact.lower()
+            if not re.match(r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", email):
+                flash("Укажи корректный адрес электронной почты.")
+                return redirect(url_for("register"))
+        else:
+            phone = contact
+            if len(re.sub(r"\\D", "", phone)) < 10:
+                flash("Укажи корректный номер телефона.")
+                return redirect(url_for("register"))
 
         if len(password) < 8:
             flash("Пароль должен содержать минимум 8 символов.")
@@ -1395,7 +1406,7 @@ def add_transaction():
             <input name="note" maxlength="200"
                    placeholder="Комментарий">
 
-            <button type="submit">Сохранить</button>
+            <button type="submit" style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">Сохранить</button>
         </form>
         <a href="/">Назад</a>
     </div>
@@ -2079,7 +2090,7 @@ def investments():
             <label>Комментарий</label>
             <input name="note" maxlength="200">
 
-            <button type="submit">Добавить инвестицию</button>
+            <button type="submit" style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">Добавить инвестицию</button>
         </form>
         <a href="/">На главную</a>
     </div>
@@ -2103,19 +2114,20 @@ def investments():
             {% if item.note %}
                 <p class="small">{{ item.note }}</p>
             {% endif %}
-            <a class="primary-link"
-               href="{{ url_for('edit_investment', investment_id=item.id) }}">
-                Редактировать
-            </a>
-            <a class="primary-link"
-               href="{{ url_for('investment_history', investment_id=item.id) }}">
-                История стоимости
-            </a>
-            <form method="post"
-                  action="{{ url_for('delete_investment', investment_id=item.id) }}"
-                  onsubmit="return confirm('Удалить эту инвестицию?')">
-                <button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:5px 8px;width:auto;margin-top:4px;">Удалить инвестицию</button>
-            </form>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;">
+                <a class="primary-link"
+                   style="display:inline-block;margin:0;padding:6px 10px;font-size:12px;"
+                   href="{{ url_for('edit_investment', investment_id=item.id) }}">Редактировать</a>
+                <a class="primary-link"
+                   style="display:inline-block;margin:0;padding:6px 10px;font-size:12px;"
+                   href="{{ url_for('investment_history', investment_id=item.id) }}">История стоимости</a>
+                <form method="post"
+                      style="display:inline-flex;margin:0;"
+                      action="{{ url_for('delete_investment', investment_id=item.id) }}"
+                      onsubmit="return confirm('Удалить эту инвестицию?')">
+                    <button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:6px 10px;width:auto;margin:0;">Удалить</button>
+                </form>
+            </div>
         {% else %}
             <p class="small">Инвестиции пока не добавлены.</p>
         {% endfor %}
