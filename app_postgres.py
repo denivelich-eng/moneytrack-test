@@ -314,6 +314,14 @@ def init_db():
             created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS user_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            name TEXT NOT NULL,
+            UNIQUE(user_id, kind, name)
+        );
+
         """)
         columns = [
             row["name"]
@@ -345,6 +353,63 @@ def init_db():
         )
 
 init_db()
+
+
+
+DEFAULT_CATEGORIES = {
+    "income": [
+        "Зарплата", "Дивиденды", "Проценты", "Подработка",
+        "Подарки", "Возврат долга", "Другое"
+    ],
+    "expense": [
+        "Продукты", "Транспорт", "Жильё", "Коммунальные услуги",
+        "Телефон и интернет", "Аренда", "Развлечения",
+        "Здоровье", "Другое"
+    ],
+    "investment": [
+        "Криптовалюта", "Акции", "Фонды", "Бизнес", "Другое"
+    ],
+}
+
+
+def get_user_categories(user_id, kind):
+    if kind not in DEFAULT_CATEGORIES:
+        return []
+    categories = list(DEFAULT_CATEGORIES[kind])
+    with connect_db() as db:
+        rows = db.execute(
+            "SELECT name FROM user_categories "
+            "WHERE user_id=? AND kind=? ORDER BY name",
+            (user_id, kind),
+        ).fetchall()
+    for row in rows:
+        name = row["name"]
+        if name not in categories:
+            categories.append(name)
+    return categories
+
+
+def save_user_category(user_id, kind, name):
+    name = (name or "").strip()
+    if kind not in DEFAULT_CATEGORIES:
+        return False, "Неизвестный тип категории."
+    if not name or len(name) > 40:
+        return False, "Название должно содержать от 1 до 40 символов."
+    if any(ord(char) < 32 for char in name):
+        return False, "Название содержит недопустимые символы."
+    if name in DEFAULT_CATEGORIES[kind]:
+        return True, name
+    with connect_db() as db:
+        db.execute(
+            "INSERT INTO user_categories (user_id, kind, name) "
+            "VALUES (?, ?, ?) ON CONFLICT(user_id, kind, name) DO NOTHING",
+            (user_id, kind, name),
+        )
+    return True, name
+
+
+def category_is_valid(user_id, kind, name):
+    return name in get_user_categories(user_id, kind)
 
 
 def login_required(func):
@@ -1243,10 +1308,12 @@ def register():
     <form method="post">
         <input name="contact"
                placeholder="Введите номер телефона или email"
-               autocomplete="username" required>
+               autocomplete="username" required
+               style="width:56%;display:block;margin-left:auto;margin-right:auto;box-sizing:border-box;">
         <input name="password" type="password"
                placeholder="Пароль от приложения"
-               autocomplete="new-password" required>
+               autocomplete="new-password" required
+               style="width:56%;display:block;margin-left:auto;margin-right:auto;box-sizing:border-box;">
         <button type="submit">Зарегистрироваться</button>
     </form>
     <a href="/login">Уже есть аккаунт? Войти</a>
@@ -1350,6 +1417,23 @@ def login():
     return page("Вход", content)
 
 
+@app.route("/categories/add", methods=["POST"])
+@login_required
+def add_user_category():
+    from flask import jsonify
+
+    user = current_user()
+    data = request.get_json(silent=True) or {}
+    kind = (data.get("kind") or "").strip()
+    name = (data.get("name") or "").strip()
+
+    ok, result = save_user_category(user["id"], kind, name)
+    if not ok:
+        return jsonify({"error": result}), 400
+
+    return jsonify({"name": result})
+
+
 @app.route("/add", methods=["GET", "POST"])
 @login_required
 def add_transaction():
@@ -1363,12 +1447,15 @@ def add_transaction():
             ORDER BY id
         """, (user["id"],)).fetchall()
 
+    categories_income = get_user_categories(user["id"], "income")
+    categories_expense = get_user_categories(user["id"], "expense")
+
     content = """
     <div class="card">
         <h2>Новая операция</h2>
         <form method="post">
             <label>Тип операции</label>
-            <select name="kind" required>
+            <select name="kind" id="operationKind" required>
                 <option value="expense"
                     {% if request.args.get('kind', 'expense') == 'expense' %}selected{% endif %}>
                     Расход
@@ -1381,9 +1468,7 @@ def add_transaction():
 
             <label>Счёт</label>
             <select name="account_id" required>
-                <option value="" disabled selected>
-                    Выбери счёт
-                </option>
+                <option value="" disabled selected>Выбери счёт</option>
                 {% for a in accounts %}
                     <option value="{{a.id}}">
                         {{a.name}} — {{a.balance|round(2)}} ₽
@@ -1396,20 +1481,86 @@ def add_transaction():
                    step="0.01" placeholder="Сумма в рублях" required>
 
             <label>Категория</label>
-            <select name="category" required>
-                {% for c in categories %}
-                    <option value="{{c}}">{{c}}</option>
-                {% endfor %}
-            </select>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <select name="category" id="operationCategory"
+                        style="flex:1;min-width:0;" required></select>
+                <button type="button" id="addCategoryButton"
+                        style="width:auto;padding:8px 14px;">+</button>
+            </div>
+            <small id="categoryHint">Выбери категорию операции</small>
 
             <label>Комментарий</label>
-            <input name="note" maxlength="200"
-                   placeholder="Комментарий">
+            <input name="note" maxlength="200" placeholder="Комментарий">
 
-            <button type="submit" style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">Сохранить</button>
+            <button type="submit"
+                    style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">
+                Сохранить
+            </button>
         </form>
         <a href="/">Назад</a>
     </div>
+
+    <script>
+    (() => {
+        const kindSelect = document.getElementById('operationKind');
+        const categorySelect = document.getElementById('operationCategory');
+        const addButton = document.getElementById('addCategoryButton');
+
+        const categories = {
+            income: {{ categories_income|tojson }},
+            expense: {{ categories_expense|tojson }}
+        };
+
+        function refreshCategories(selectedName) {
+            const kind = kindSelect.value;
+            categorySelect.replaceChildren();
+
+            (categories[kind] || []).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                categorySelect.appendChild(option);
+            });
+
+            if (selectedName && (categories[kind] || []).includes(selectedName)) {
+                categorySelect.value = selectedName;
+            }
+        }
+
+        kindSelect.addEventListener('change', () => refreshCategories());
+        refreshCategories();
+
+        addButton.addEventListener('click', async () => {
+            const name = prompt('Название новой категории:');
+            if (name === null || !name.trim()) return;
+
+            try {
+                const response = await fetch('/categories/add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        kind: kindSelect.value,
+                        name: name.trim()
+                    })
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    alert(result.error || 'Не удалось добавить категорию.');
+                    return;
+                }
+
+                if (!(categories[kindSelect.value] || []).includes(result.name)) {
+                    categories[kindSelect.value].push(result.name);
+                }
+                refreshCategories(result.name);
+                alert('Категория добавлена.');
+            } catch (error) {
+                alert('Ошибка соединения. Попробуй ещё раз.');
+            }
+        });
+    })();
+    </script>
     """
 
     if request.method == "POST":
@@ -1423,7 +1574,7 @@ def add_transaction():
             if (
                 amount <= 0
                 or kind not in ("income", "expense")
-                or category not in CATEGORIES
+                or not category_is_valid(user["id"], kind, category)
             ):
                 raise ValueError
 
@@ -1438,8 +1589,7 @@ def add_transaction():
 
                 db.execute("""
                     INSERT INTO transactions
-                    (user_id, kind, amount, category, note,
-                     created, account_id)
+                    (user_id, kind, amount, category, note, created, account_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
                     user["id"], kind, amount, category, note,
@@ -1448,7 +1598,6 @@ def add_transaction():
                 ))
 
                 change = amount if kind == "income" else -amount
-
                 db.execute("""
                     UPDATE accounts
                     SET balance = balance + ?
@@ -1463,9 +1612,11 @@ def add_transaction():
     return page(
         "Новая операция",
         content,
-        categories=CATEGORIES,
+        categories_income=categories_income,
+        categories_expense=categories_expense,
         accounts=accounts
     )
+
 
 @app.route("/delete/<int:transaction_id>", methods=["POST"])
 @login_required
@@ -1520,6 +1671,90 @@ def edit_transaction(transaction_id):
         flash("Операция не найдена.")
         return redirect(url_for("index"))
 
+    categories_income = get_user_categories(user["id"], "income")
+    categories_expense = get_user_categories(user["id"], "expense")
+
+    content = """
+    <div class="card">
+        <h2>Редактировать операцию</h2>
+        <form method="post">
+            <label>Тип операции</label>
+            <select name="kind" id="operationKind" required>
+                <option value="expense"
+                    {% if transaction.kind == 'expense' %}selected{% endif %}>
+                    Расход
+                </option>
+                <option value="income"
+                    {% if transaction.kind == 'income' %}selected{% endif %}>
+                    Доход
+                </option>
+            </select>
+
+            <label>Сумма</label>
+            <input name="amount" type="number" min="0.01" step="0.01"
+                   value="{{ transaction.amount }}" required>
+
+            <label>Категория</label>
+            <select name="category" id="operationCategory" required></select>
+
+            <label>Комментарий</label>
+            <input name="note" maxlength="200"
+                   value="{{ transaction.note or '' }}">
+
+            <button type="submit">Сохранить изменения</button>
+        </form>
+        <form method="post" action="/delete/{{ transaction.id }}"
+              onsubmit="return confirm('Удалить эту операцию без возможности восстановления?');">
+            <button type="submit"
+                    style="background:#dc2626;color:white;width:100%;margin-top:10px;">
+                Удалить операцию
+            </button>
+        </form>
+        <a href="/">Отмена</a>
+    </div>
+
+    <script>
+    (() => {
+        const kindSelect = document.getElementById('operationKind');
+        const categorySelect = document.getElementById('operationCategory');
+        const categories = {
+            income: {{ categories_income|tojson }},
+            expense: {{ categories_expense|tojson }}
+        };
+        const originalCategory = {{ transaction.category|tojson }};
+
+        function refreshCategories() {
+            const kind = kindSelect.value;
+            const previous = categorySelect.value;
+            categorySelect.replaceChildren();
+
+            const items = [...(categories[kind] || [])];
+            if (kind === {{ transaction.kind|tojson }} &&
+                originalCategory && !items.includes(originalCategory)) {
+                items.unshift(originalCategory);
+            }
+
+            items.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                categorySelect.appendChild(option);
+            });
+
+            if (items.includes(previous)) {
+                categorySelect.value = previous;
+            } else if (kind === {{ transaction.kind|tojson }} &&
+                       items.includes(originalCategory)) {
+                categorySelect.value = originalCategory;
+            }
+        }
+
+        kindSelect.addEventListener('change', refreshCategories);
+        refreshCategories();
+    })();
+    </script>
+    """
+
     if request.method == "POST":
         try:
             kind = request.form.get("kind", "")
@@ -1530,7 +1765,7 @@ def edit_transaction(transaction_id):
             if (
                 amount <= 0
                 or kind not in ("income", "expense")
-                or category not in CATEGORIES
+                or not category_is_valid(user["id"], kind, category)
             ):
                 raise ValueError
 
@@ -1541,9 +1776,7 @@ def edit_transaction(transaction_id):
                         if transaction["kind"] == "income"
                         else -transaction["amount"]
                     )
-                    new_change = (
-                        amount if kind == "income" else -amount
-                    )
+                    new_change = amount if kind == "income" else -amount
 
                     db.execute("""
                         UPDATE accounts
@@ -1570,54 +1803,12 @@ def edit_transaction(transaction_id):
         except (ValueError, TypeError):
             flash("Проверь сумму и категорию.")
 
-    content = """
-    <div class="card">
-        <h2>Редактировать операцию</h2>
-        <form method="post">
-            <label>Тип операции</label>
-            <select name="kind" required>
-                <option value="expense"
-                    {% if transaction.kind == 'expense' %}selected{% endif %}>
-                    Расход
-                </option>
-                <option value="income"
-                    {% if transaction.kind == 'income' %}selected{% endif %}>
-                    Доход
-                </option>
-            </select>
-
-            <label>Сумма</label>
-            <input name="amount" type="number" min="0.01" step="0.01"
-                   value="{{ transaction.amount }}" required>
-
-            <label>Категория</label>
-            <select name="category" required>
-                {% for c in categories %}
-                    <option value="{{ c }}"
-                        {% if c == transaction.category %}selected{% endif %}>
-                        {{ c }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <label>Комментарий</label>
-            <input name="note" maxlength="200"
-                   value="{{ transaction.note or '' }}">
-
-            <button type="submit">Сохранить изменения</button>
-        </form>
-        <form method="post" action="/delete/{{ transaction.id }}" onsubmit="return confirm('Удалить эту операцию без возможности восстановления?');">
-            <button type="submit" style="background:#dc2626;color:white;width:100%;margin-top:10px;">Удалить операцию</button>
-        </form>
-        <a href="/">Отмена</a>
-    </div>
-    """
-
     return page(
         "Редактировать операцию",
         content,
         transaction=transaction,
-        categories=CATEGORIES
+        categories_income=categories_income,
+        categories_expense=categories_expense
     )
 
 
@@ -1994,10 +2185,7 @@ def investments():
             amount = 0
             current_value = -1
 
-        allowed_types = (
-            "Криптовалюта", "Акции", "Фонды",
-            "Бизнес", "Другое"
-        )
+        allowed_types = get_user_categories(user["id"], "investment")
 
         if not name or len(name) > 100:
             flash("Укажи название актива (до 100 символов).")
@@ -2071,13 +2259,15 @@ def investments():
                    placeholder="Например, Bitcoin" required>
 
             <label>Тип актива</label>
-            <select name="asset_type" required>
-                <option value="Криптовалюта">Криптовалюта</option>
-                <option value="Акции">Акции</option>
-                <option value="Фонды">Фонды</option>
-                <option value="Бизнес">Бизнес</option>
-                <option value="Другое">Другое</option>
-            </select>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <select name="asset_type" id="assetType" style="flex:1;min-width:0;" required>
+                    {% for t in asset_types %}
+                        <option value="{{ t }}">{{ t }}</option>
+                    {% endfor %}
+                </select>
+                <button type="button" id="addAssetType"
+                        style="width:auto;padding:8px 14px;">+</button>
+            </div>
 
             <label>Вложенная сумма, ₽</label>
             <input name="amount" type="number" min="0.01"
@@ -2094,6 +2284,38 @@ def investments():
         </form>
         <a href="/">На главную</a>
     </div>
+
+    <script>
+    document.getElementById('addAssetType').addEventListener('click', async () => {
+        const name = prompt('Название нового типа актива:');
+        if (name === null || !name.trim()) return;
+
+        try {
+            const response = await fetch('/categories/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({kind: 'investment', name: name.trim()})
+            });
+            const result = await response.json();
+
+            if (!response.ok) {
+                alert(result.error || 'Не удалось добавить тип актива.');
+                return;
+            }
+
+            const select = document.getElementById('assetType');
+            if (![...select.options].some(option => option.value === result.name)) {
+                const option = document.createElement('option');
+                option.value = result.name;
+                option.textContent = result.name;
+                select.appendChild(option);
+            }
+            select.value = result.name;
+        } catch (error) {
+            alert('Ошибка соединения. Попробуй ещё раз.');
+        }
+    });
+    </script>
 
     <div class="card">
         <h3>Мои активы</h3>
@@ -2138,7 +2360,8 @@ def investments():
         "Инвестиции", content,
         rows=rows, invested=invested,
         current_total=current_total, profit=profit,
-        profit_percent=profit_percent
+        profit_percent=profit_percent,
+        asset_types=get_user_categories(user["id"], "investment")
     )
 
 
@@ -2161,9 +2384,9 @@ def edit_investment(investment_id):
         flash("Инвестиция не найдена.")
         return redirect(url_for("investments"))
 
-    allowed_types = (
-        "Криптовалюта", "Акции", "Фонды", "Бизнес", "Другое"
-    )
+    allowed_types = get_user_categories(user["id"], "investment")
+    if item["asset_type"] not in allowed_types:
+        allowed_types.append(item["asset_type"])
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -2214,14 +2437,18 @@ def edit_investment(investment_id):
                    value="{{ item.name }}" required>
 
             <label>Тип актива</label>
-            <select name="asset_type" required>
-                {% for t in ["Криптовалюта", "Акции", "Фонды", "Бизнес", "Другое"] %}
+            <div style="display:flex;gap:8px;align-items:center;">
+            <select name="asset_type" id="assetType" style="flex:1;min-width:0;" required>
+                {% for t in asset_types %}
                     <option value="{{ t }}"
                         {% if item.asset_type == t %}selected{% endif %}>
                         {{ t }}
                     </option>
                 {% endfor %}
             </select>
+            <button type="button" id="addAssetType"
+                    style="width:auto;padding:8px 14px;">+</button>
+            </div>
 
             <label>Вложенная сумма, ₽</label>
             <input name="amount" type="number" min="0.01"
@@ -2238,9 +2465,39 @@ def edit_investment(investment_id):
         </form>
         <a href="/investments">Назад к инвестициям</a>
     </div>
-    """
+    <script>
+    document.getElementById('addAssetType').addEventListener('click', async () => {
+        const name = prompt('Название нового типа актива:');
+        if (name === null || !name.trim()) return;
 
-    return page("Редактировать инвестицию", content, item=item)
+        try {
+            const response = await fetch('/categories/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({kind: 'investment', name: name.trim()})
+            });
+            const result = await response.json();
+
+            if (!response.ok) {
+                alert(result.error || 'Не удалось добавить тип актива.');
+                return;
+            }
+
+            const select = document.getElementById('assetType');
+            if (![...select.options].some(option => option.value === result.name)) {
+                const option = document.createElement('option');
+                option.value = result.name;
+                option.textContent = result.name;
+                select.appendChild(option);
+            }
+            select.value = result.name;
+        } catch (error) {
+            alert('Ошибка соединения. Попробуй ещё раз.');
+        }
+    });
+    </script>
+    """
+    return page("Редактировать инвестицию", content, item=item, asset_types=allowed_types)
 
 
 @app.route("/investments/delete/<int:investment_id>", methods=["POST"])
@@ -2341,7 +2598,7 @@ def budgets():
         try:
             amount = float(request.form.get("amount", "0"))
 
-            if category not in CATEGORIES or amount <= 0:
+            if not category_is_valid(user["id"], "expense", category) or amount <= 0:
                 raise ValueError
 
             with connect_db() as db:
@@ -2457,7 +2714,7 @@ def budgets():
     return page(
         "Бюджеты",
         content,
-        categories=CATEGORIES,
+        categories=get_user_categories(user["id"], "expense"),
         budget_list=budget_list,
         current_month=current_month
     )
@@ -2803,7 +3060,7 @@ def recurring():
             if (
                 not name
                 or amount <= 0
-                or category not in CATEGORIES
+                or not category_is_valid(user["id"], "expense", category)
                 or frequency not in (
                     "monthly", "weekly", "yearly"
                 )
@@ -2986,7 +3243,7 @@ def recurring():
     return page(
         "Регулярные платежи",
         content,
-        categories=CATEGORIES,
+        categories=get_user_categories(user["id"], "expense"),
         payment_list=payment_list,
         accounts=accounts
     )
