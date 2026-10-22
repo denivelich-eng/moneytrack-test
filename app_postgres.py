@@ -1287,17 +1287,6 @@ def index():
         chart_gradient = ", ".join(segments)
 
     content = """
-
-            </div>
-            <div class="amount">{{ p.amount|round(2) }} ₽</div>
-        </div>
-        {% endfor %}
-        <a class="primary-link" href="/recurring">
-            Все обязательные платежи →
-        </a>
-    </div>
-    {% endif %}
-
     <div class="card balance-card">
         <div class="small">Общий баланс</div>
         <div class="amount">{{balance|round(2)}} ₽</div>
