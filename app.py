@@ -1,3 +1,4 @@
+import math
 import os
 import re
 import sqlite3
@@ -161,10 +162,6 @@ def init_db():
                 "ALTER TABLE users ADD COLUMN trial_started TEXT"
             )
 
-        db.execute(
-            "UPDATE users SET trial_started=? WHERE trial_started IS NULL",
-            (datetime.now().isoformat(),)
-        )
 
 init_db()
 
@@ -298,7 +295,24 @@ a:hover {
     text-decoration: underline;
 }
 
-input, select, button {
+.auth-submit {
+    width: 50%;
+    min-height: 40px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 9px 10px;
+    font: inherit;
+    background: var(--green);
+    color: #052e2b;
+    border: 0;
+    border-radius: 8px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: filter 0.2s, transform 0.2s;
+}
+
+button {
     width: 100%;
     min-height: 40px;
     padding: 9px 10px;
@@ -311,6 +325,41 @@ input, select, button {
 input, select {
     background: #0f192b;
     color: var(--text);
+}
+
+/* Мобильная форма новой операции */
+.operation-fields {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.operation-fields label {
+    display: block;
+    width: 100%;
+    margin: 8px 0 0;
+    line-height: 1.4;
+}
+
+.operation-fields input,
+.operation-fields select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+
+.operation-fields button {
+    width: 100%;
+    max-width: 100%;
+    margin: 12px 0 0;
+}
+
+.operation-fields #new-account-fields[hidden] {
+    display: none;
 }
 
 input::placeholder {
@@ -527,20 +576,20 @@ hr {
 /* Нижняя плавающая панель навигации */
 .bottom-nav {
     position: fixed;
-    bottom: calc(12px + env(safe-area-inset-bottom));
+    bottom: calc(10px + env(safe-area-inset-bottom));
     left: 12px;
     right: 12px;
     z-index: 1000;
     display: flex;
     justify-content: space-around;
     align-items: center;
-    gap: 4px;
-    padding: 12px 8px;
-    background: rgba(15, 23, 42, 0.5);
+    gap: 3px;
+    padding: 8px 7px;
+    background: rgba(15, 23, 42, 0.58);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     border: 1px solid rgba(148, 163, 184, 0.25);
-    border-radius: 24px;
+    border-radius: 22px;
     box-shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
 }
 
@@ -551,13 +600,14 @@ hr {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 2px;
-    color: #64748b;
+    gap: 5px;
+    padding: 9px 1px;
+    color: #94a3b8;
     text-decoration: none;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.2;
-    border-radius: 16px;
+    border-radius: 15px;
+    white-space: nowrap;
 }
 
 .bottom-nav a.active {
@@ -566,9 +616,49 @@ hr {
     background: rgba(219, 234, 254, 0.85);
 }
 
+.bottom-nav a.nav-main {
+    flex: 1.2;
+    margin-top: -9px;
+    padding: 10px 2px 11px;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 18px;
+    box-shadow: 0 5px 14px rgba(37, 99, 235, 0.38);
+}
+
+.bottom-nav a.nav-main .nav-icon {
+    font-size: 27px;
+}
+
+.bottom-nav a.nav-main.active {
+    color: #ffffff;
+    background: linear-gradient(145deg, #2563eb, #1e40af);
+    box-shadow: 0 5px 16px rgba(37, 99, 235, 0.48);
+}
+
 .bottom-nav .nav-icon {
-    font-size: 25px;
+    font-size: 22px;
     line-height: 1;
+}
+
+@media (max-width: 380px) {
+    .bottom-nav {
+        left: 7px;
+        right: 7px;
+        padding: 7px 4px;
+        gap: 2px;
+    }
+
+    .bottom-nav a {
+        font-size: 10px;
+    }
+
+    .bottom-nav a.nav-main {
+        font-size: 10px;
+    }
 }
 
 body {
@@ -642,6 +732,137 @@ button {
     }
 }
 
+
+/* Единый стиль кнопок действий */
+.action-edit,
+.action-add,
+.action-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 42px;
+    padding: 10px 12px;
+    margin: 5px 0;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 750;
+    line-height: 1.3;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.2s, transform 0.2s;
+}
+
+.action-edit {
+    width: 100%;
+    background: #203b3b;
+    color: #45d6a1;
+    border-color: #28554d;
+}
+
+.action-add {
+    width: 100%;
+    background: var(--green);
+    color: #062b25;
+}
+
+.action-delete {
+    width: 100%;
+    background: #bd343b;
+    color: #ffffff;
+}
+
+.action-edit:hover,
+.action-add:hover,
+.action-delete:hover {
+    filter: brightness(1.1);
+    text-decoration: none;
+}
+
+.action-edit:active,
+.action-add:active,
+.action-delete:active {
+    transform: scale(0.99);
+}
+
+
+.reschedule-form {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+}
+.reschedule-form .reschedule-date {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+.reschedule-form .action-add {
+    width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+}
+.recurring-actions > form {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.recurring-actions button {
+    width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+}
+@media(max-width:380px) {
+    .recurring-actions { gap: 6px; }
+    .recurring-actions button { padding: 9px 4px; font-size: 12px; }
+}
+
+.action-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    margin: 8px 0;
+}
+
+.action-row > * {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    margin: 0;
+}
+
+.action-row form {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+}
+
+.action-row form button,
+.action-row > button,
+.action-row > a {
+    width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 380px) {
+    .action-edit,
+    .action-add,
+    .action-delete {
+        padding: 9px 6px;
+        font-size: 12px;
+    }
+}
+
 </style>
 """
 
@@ -676,7 +897,7 @@ def page(title, content, **context):
             <span>Аналитика</span>
         </a>
 
-        <a href="/add" class="{{ 'active' if request.endpoint == 'add' else '' }}">
+        <a href="/add" class="nav-main {{ 'active' if request.endpoint == 'add_transaction' else '' }}">
             <span class="nav-icon">⇄</span>
             <span>Операции</span>
         </a>
@@ -758,6 +979,15 @@ def index():
             GROUP BY category
             ORDER BY amount DESC
         """, (user["id"], selected_month)).fetchall()
+
+    with connect_db() as db:
+        upcoming_payments = db.execute("""
+            SELECT id, name, amount, category, next_date, frequency
+            FROM recurring_payments
+            WHERE user_id = ? AND active = 1
+            ORDER BY next_date ASC
+            LIMIT 3
+        """, (user["id"],)).fetchall()
 
     goal_list = []
 
@@ -907,6 +1137,29 @@ def index():
         <a href="/goals">Все финансовые цели →</a>
     </div>
     {% endif %}
+    {% if upcoming_payments %}
+    <div class="card">
+        <h3>Ближайшие платежи</h3>
+        {% for payment in upcoming_payments %}
+            <div style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <strong>{{payment.name}}</strong>
+                    <strong>{{payment.amount|round(2)}} ₽</strong>
+                </div>
+                <div class="small">{{payment.category}} · {{payment.next_date}}</div>
+                {% if payment.next_date < today %}
+                    <span class="expense">Просрочен</span>
+                {% elif payment.next_date == today %}
+                    <span class="expense">Сегодня</span>
+                {% else %}
+                    <span class="small">Предстоящий платёж</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <a href="/recurring">Все регулярные платежи →</a>
+    </div>
+    {% endif %}
+
      <div class="card">
         <h3>Последние операции</h3>
         {% for t in rows %}
@@ -920,10 +1173,13 @@ def index():
                     — {{t.category}} {{t.note}}
                 </p>
                 <div class="small">{{t.created}}</div>
-                <a href="/edit/{{t.id}}">Редактировать</a>
-                <form method="post" action="/delete/{{t.id}}" style="display:inline;"
-                      onsubmit="return confirm('Удалить эту операцию?')">
-<button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:5px 8px;width:auto;margin-top:4px;">Удалить</button>                </form>
+                <div class="action-row">
+                    <a href="/edit/{{t.id}}" class="action-edit">✏️ Редактировать</a>
+                    <form method="post" action="/delete/{{t.id}}"
+                          onsubmit="return confirm('Удалить эту операцию?')">
+                        <button type="submit" class="action-delete">🗑️ Удалить</button>
+                    </form>
+                </div>
             </div>
         {% else %}
             <p class="small">Операций пока нет.</p>
@@ -947,6 +1203,8 @@ def index():
      month_expense=month_expense,
      month_balance=month_balance,
      goal_list=goal_list,
+     upcoming_payments=upcoming_payments,
+     today=datetime.now().strftime("%Y-%m-%d"),
     )
 
 
@@ -987,6 +1245,34 @@ def analytics():
             GROUP BY category
             ORDER BY amount DESC
         """, (user["id"], selected_month)).fetchall()
+
+    colors = [
+        "#6366f1", "#f59e0b", "#10b981", "#ef4444",
+        "#06b6d4", "#ec4899", "#8b5cf6", "#84cc16",
+        "#f97316", "#14b8a6"
+    ]
+
+    category_total = sum(row["amount"] for row in categories)
+    pie_categories = [
+        {
+            "category": row["category"],
+            "amount": row["amount"],
+            "percent": round(row["amount"] / category_total * 100, 1),
+            "color": colors[i % len(colors)]
+        }
+        for i, row in enumerate(categories)
+    ] if category_total > 0 else []
+
+    pie_segments = []
+    start_percent = 0
+    for item in pie_categories:
+        end_percent = start_percent + item["percent"]
+        pie_segments.append(
+            f'{item["color"]} {start_percent}% {end_percent}%'
+        )
+        start_percent = end_percent
+
+    pie_gradient = ", ".join(pie_segments)
 
     month_income = totals["income"]
     month_expense = totals["expense"]
@@ -1029,13 +1315,35 @@ def analytics():
         {% endfor %}
     </div>
 
-    <div class="card">
-        <h3>Расходы по категориям</h3>
-        {% for c in categories %}
-            <p>{{c.category}} — {{c.amount|round(2)}} ₽</p>
+    <div class="card" style="padding:20px;">
+        <h3>Структура расходов</h3>
+        {% if pie_categories %}
+        <div style="display:flex;justify-content:center;align-items:center;padding:16px 0;">
+            <div style="position:relative;width:210px;height:210px;max-width:100%;aspect-ratio:1;border-radius:50%;background:conic-gradient({{pie_gradient}});flex-shrink:0;">
+                <div style="position:absolute;inset:10%;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px;">
+                    <span class="small">Всего расходов</span>
+                    <strong style="font-size:19px;line-height:1.3;">{{month_expense|round(0)|int}} ₽</strong>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top:12px;">
+            {% for c in pie_categories %}
+            <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    <span style="width:10px;height:10px;flex-shrink:0;border-radius:3px;background:{{c.color}};"></span>
+                    <strong style="flex:1;">{{c.category}}</strong>
+                    <strong style="color:var(--text-muted);">{{c.percent}}%</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <span class="small">Доля расходов</span>
+                    <strong>{{c.amount|round(2)}} ₽</strong>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         {% else %}
-            <p class="small">За этот месяц расходов нет.</p>
-        {% endfor %}
+        <p class="small">За этот месяц расходов нет.</p>
+        {% endif %}
     </div>
     """
 
@@ -1046,6 +1354,8 @@ def analytics():
         month_expense=month_expense,
         month_balance=month_balance,
         max_value=max_value,
+        pie_categories=pie_categories,
+        pie_gradient=pie_gradient,
         categories=categories
     )
 
@@ -1061,7 +1371,7 @@ def register():
         <input name="email" type="email" placeholder="Электронная почта (необязательно)">
         <input name="password" type="password"
                placeholder="Пароль от приложения" required>
-        <button>Зарегистрироваться</button>
+        <button type="submit" class="auth-submit">Зарегистрироваться</button>
     </form>
     <a href="/login">Уже есть аккаунт? Войти</a>
     </div>
@@ -1117,7 +1427,7 @@ def login():
         <input name="login" placeholder="Номер телефона или email" required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
         <input name="password" type="password"
                placeholder="Пароль" required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
-        <button>Войти</button>
+        <button type="submit" class="auth-submit">Войти</button>
     </form>
     <a href="/register">Создать аккаунт</a>
     </div>
@@ -1168,11 +1478,17 @@ def add_transaction():
             WHERE user_id=?
             ORDER BY id
         """, (user["id"],)).fetchall()
+        transactions = db.execute("""
+            SELECT *
+            FROM transactions
+            WHERE user_id=?
+            ORDER BY id DESC
+        """, (user["id"],)).fetchall()
 
     content = """
-    <div class="card">
+    <div class="card operation-form">
         <h2>Новая операция</h2>
-        <form method="post">
+        <form method="post" class="operation-fields">
             <label>Тип операции</label>
             <select name="kind" required>
                 <option value="expense"
@@ -1186,16 +1502,35 @@ def add_transaction():
             </select>
 
             <label>Счёт</label>
-            <select name="account_id" required>
-                <option value="" disabled selected>
+            <select name="account_id" id="account-select" required
+                >
+                <option value="" disabled
+                    {% if not request.args.get('account_id') %}selected{% endif %}>
                     Выбери счёт
                 </option>
                 {% for a in accounts %}
-                    <option value="{{a.id}}">
+                    <option value="{{a.id}}"
+                        {% if request.args.get('account_id')|string == a.id|string %}selected{% endif %}>
                         {{a.name}} — {{a.balance|round(2)}} ₽
                     </option>
                 {% endfor %}
+                <option value="__add__">＋ Добавить счёт</option>
             </select>
+
+            <div id="new-account-fields" hidden
+                style="margin:10px 0; padding:12px; border:1px solid var(--border-color, #ccc); border-radius:12px;">
+                <label>Название нового счёта</label>
+                <input id="new_account_name" name="new_account_name" maxlength="60"
+                    placeholder="Например, Основной">
+
+                <label>Начальный баланс, ₽</label>
+                <input name="new_account_balance" type="number"
+                    step="0.01" value="0">
+
+                <button type="submit" name="action" value="create_account" formnovalidate class="action-add">
+                    ＋ Создать счёт
+                </button>
+            </div>
 
             <label>Сумма</label>
             <input name="amount" type="number" min="0.01"
@@ -1212,13 +1547,100 @@ def add_transaction():
             <input name="note" maxlength="200"
                    placeholder="Комментарий">
 
-            <button type="submit">Сохранить</button>
+            <button type="submit" class="action-add">💾 Сохранить операцию</button>
         </form>
         <a href="/">Назад</a>
+    </div>
+    <script>
+    (() => {
+        const accountSelect = document.getElementById('account-select');
+        const fields = document.getElementById('new-account-fields');
+        const nameInput = document.getElementById('new_account_name');
+        const balanceInput = document.querySelector('[name="new_account_balance"]');
+
+        function updateAccountFields() {
+            const adding = accountSelect.value === '__add__';
+            fields.hidden = !adding;
+            nameInput.required = adding;
+            balanceInput.required = adding;
+            if (adding) nameInput.focus();
+        }
+
+        accountSelect.addEventListener('change', updateAccountFields);
+        updateAccountFields();
+    })();
+    </script>
+
+    <div class="card">
+        <h2>Все операции</h2>
+        {% for t in transactions %}
+        <div class="transaction-row" style="padding:12px 0;border-bottom:1px solid var(--border-color, #e5e7eb);">
+            <p>
+                {% if t.kind == 'income' %}
+                    <span class="income">+{{t.amount}} ₽</span>
+                {% else %}
+                    <span class="expense">−{{t.amount}} ₽</span>
+                {% endif %}
+                — {{t.category}}
+                {% if t.note %} · {{t.note}}{% endif %}
+            </p>
+            <div class="small">{{t.created}}</div>
+            <div class="action-row">
+                <a href="/edit/{{t.id}}" class="action-edit">✏️ Редактировать</a>
+                <form method="post" action="/delete/{{t.id}}" onsubmit="return confirm('Удалить эту операцию?')">
+                    <button type="submit" class="action-delete">🗑️ Удалить</button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <p class="small">Операций пока нет.</p>
+        {% endfor %}
     </div>
     """
 
     if request.method == "POST":
+        if request.form.get("action") == "create_account":
+            name = request.form.get("new_account_name", "").strip()
+            try:
+                balance = float(request.form.get("new_account_balance", "0"))
+                if not name or len(name) > 60 or not math.isfinite(balance):
+                    raise ValueError
+            except (ValueError, TypeError):
+                flash("Укажи название счёта и корректный начальный баланс.")
+                return redirect(url_for(
+                    "add_transaction",
+                    kind=request.form.get("kind", "expense")
+                ))
+
+            with connect_db() as db:
+                account_count = db.execute(
+                    "SELECT COUNT(*) FROM accounts WHERE user_id=?",
+                    (user["id"],)
+                ).fetchone()[0]
+
+                if account_count >= 2 and not has_access(user):
+                    flash("На бесплатном тарифе можно иметь максимум 2 счёта. Удали один из счетов или подключи подписку.")
+                    return redirect(url_for("accounts"))
+
+                result = db.execute("""
+                    INSERT INTO accounts (user_id, name, balance)
+                    VALUES (?, ?, ?)
+                """, (user["id"], name, balance))
+                new_account_id = result.lastrowid
+
+            return redirect(url_for(
+                "add_transaction",
+                kind=request.form.get("kind", "expense"),
+                account_id=new_account_id
+            ))
+
+        if request.form.get("account_id") == "__add__":
+            flash("Заполни данные нового счёта и нажми «Создать счёт».")
+            return redirect(url_for(
+                "add_transaction",
+                kind=request.form.get("kind", "expense")
+            ))
+
         try:
             amount = float(request.form.get("amount", "0"))
             kind = request.form.get("kind", "")
@@ -1235,12 +1657,20 @@ def add_transaction():
 
             with connect_db() as db:
                 account = db.execute("""
-                    SELECT id FROM accounts
+                    SELECT id, balance FROM accounts
                     WHERE id=? AND user_id=?
                 """, (account_id, user["id"])).fetchone()
 
                 if account is None:
                     raise ValueError
+
+                if kind == "expense" and amount > (account["balance"] or 0):
+                    flash("Недостаточно средств на выбранном счёте.")
+                    return redirect(url_for(
+                        "add_transaction",
+                        kind=kind,
+                        account_id=account_id
+                    ))
 
                 db.execute("""
                     INSERT INTO transactions
@@ -1261,7 +1691,7 @@ def add_transaction():
                     WHERE id=? AND user_id=?
                 """, (change, account_id, user["id"]))
 
-            return redirect(url_for("index"))
+            return redirect(url_for("add_transaction"))
 
         except (ValueError, TypeError):
             flash("Проверь сумму, категорию и выбранный счёт.")
@@ -1270,7 +1700,8 @@ def add_transaction():
         "Новая операция",
         content,
         categories=CATEGORIES,
-        accounts=accounts
+        accounts=accounts,
+        transactions=transactions
     )
 
 @app.route("/delete/<int:transaction_id>", methods=["POST"])
@@ -1410,10 +1841,10 @@ def edit_transaction(transaction_id):
             <input name="note" maxlength="200"
                    value="{{ transaction.note or '' }}">
 
-            <button type="submit">Сохранить изменения</button>
+            <button type="submit" class="action-add">💾 Сохранить изменения</button>
         </form>
         <form method="post" action="/delete/{{ transaction.id }}" onsubmit="return confirm('Удалить эту операцию без возможности восстановления?');">
-            <button type="submit" style="background:#dc2626;color:white;width:100%;margin-top:10px;">Удалить операцию</button>
+            <button type="submit" class="action-delete">🗑️ Удалить операцию</button>
         </form>
         <a href="/">Отмена</a>
     </div>
@@ -1532,19 +1963,19 @@ def accounts():
                         <input type="hidden" name="account_id" value="{{ account["id"] }}">
                         <label>Название счёта</label>
                         <input name="name" value="{{ account["name"] }}" maxlength="60" required>
-                        <button type="submit">Сохранить название</button>
+                        <button type="submit" class="action-add">💾 Сохранить название</button>
                     </form>
                     <form method="post">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="account_id" value="{{ account["id"] }}">
-                        <button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:5px 8px;width:auto;margin-top:4px;">Удалить счёт</button>
+                        <button type="submit" class="action-delete">🗑️ Удалить счёт</button>
                     </form>
                     <form method="post">
                         <input type="hidden" name="action" value="update_balance">
                         <input type="hidden" name="account_id" value="{{ account["id"] }}">
                         <label>Баланс</label>
                         <input name="balance" type="number" step="0.01" value="{{ account["balance"] }}" required>
-                        <button type="submit">Сохранить баланс</button>
+                        <button type="submit" class="action-add">💾 Сохранить баланс</button>
                     </form>
                 </div>
             {% endfor %}
@@ -1558,7 +1989,7 @@ def accounts():
         <input name="name" placeholder="Например, наличные" required>
         <input name="balance" type="number" step="0.01"
                placeholder="Начальный баланс" value="0">
-        <button>Добавить</button>
+        <button type="submit" class="action-add">＋ Добавить счёт</button>
     </form>
     <a href="/">Назад</a>
     </div>
@@ -1750,7 +2181,7 @@ def debts():
                             </option>
                         {% endfor %}
                     </select>
-                    <button type="submit">Записать погашение</button>
+                    <button type="submit" class="action-add">💸 Записать погашение</button>
                 </form>
             {% else %}
                 <p class="income">Долг полностью погашен!</p>
@@ -1887,7 +2318,7 @@ def investments():
             <label>Комментарий</label>
             <input name="note" maxlength="200">
 
-            <button type="submit">Добавить инвестицию</button>
+            <button type="submit" class="action-add">＋ Добавить инвестицию</button>
         </form>
         <a href="/">На главную</a>
     </div>
@@ -1911,19 +2342,17 @@ def investments():
             {% if item.note %}
                 <p class="small">{{ item.note }}</p>
             {% endif %}
-            <a class="primary-link"
+            <div class="action-row">
+<a class="action-edit"
                href="{{ url_for('edit_investment', investment_id=item.id) }}">
                 Редактировать
             </a>
-            <a class="primary-link"
-               href="{{ url_for('investment_history', investment_id=item.id) }}">
-                История стоимости
-            </a>
-            <form method="post"
+<form method="post"
                   action="{{ url_for('delete_investment', investment_id=item.id) }}"
                   onsubmit="return confirm('Удалить эту инвестицию?')">
-                <button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:5px 8px;width:auto;margin-top:4px;">Удалить инвестицию</button>
+                <button type="submit" class="action-delete">🗑️ Удалить</button>
             </form>
+</div>
         {% else %}
             <p class="small">Инвестиции пока не добавлены.</p>
         {% endfor %}
@@ -2209,7 +2638,7 @@ def budgets():
             <input name="amount" type="number"
                    min="0.01" step="0.01" required>
 
-            <button type="submit">Сохранить бюджет</button>
+            <button type="submit" class="action-add">💾 Сохранить бюджет</button>
         </form>
     </div>
 
@@ -2388,7 +2817,7 @@ def goals():
                    min="0.01" step="0.01" required>
             <label>Желаемая дата (необязательно)</label>
             <input name="target_date" type="date">
-            <button type="submit">Создать цель</button>
+            <button type="submit" class="action-add">🎯 Создать цель</button>
         </form>
     </div>
 
@@ -2426,7 +2855,7 @@ def goals():
                 <label>Желаемая дата</label>
                 <input name="target_date" type="date"
                        value="{{ g.target_date }}">
-                <button type="submit">Сохранить изменения</button>
+                <button type="submit" class="action-add">💾 Сохранить изменения</button>
             </form>
         </details>
 
@@ -2436,17 +2865,14 @@ def goals():
             <label>Добавить к накоплениям, ₽</label>
             <input name="amount" type="number"
                    min="0.01" step="0.01" required>
-            <button type="submit">Добавить накопления</button>
+            <button type="submit" class="action-add">＋ Добавить накопления</button>
         </form>
 
         <form method="post" style="margin-top:12px;"
               onsubmit="return confirm('Точно удалить эту цель?');">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="goal_id" value="{{ g.id }}">
-            <button type="submit"
-                    style="background:#dc2626;color:white;">
-                Удалить цель
-            </button>
+            <button type="submit" class="action-delete">🗑️ Удалить цель</button>
         </form>
     </div>
     {% else %}
@@ -2716,7 +3142,7 @@ def recurring():
             <label>Примечание</label>
             <input name="note" placeholder="Необязательно">
 
-            <button type="submit">Добавить платеж</button>
+            <button type="submit" class="action-add">＋ Добавить платёж</button>
         </form>
     </div>
 
@@ -2752,7 +3178,7 @@ def recurring():
                         </option>
                     {% endfor %}
                 </select>
-                <button type="submit">Оплатить</button>
+                <button type="submit" class="action-add">💳 Оплатить</button>
             </form>
             <p>
                 Периодичность:
@@ -2767,6 +3193,33 @@ def recurring():
             {% if p.note %}
                 <p>{{p.note}}</p>
             {% endif %}
+
+            <a href="/recurring/{{p.id}}/edit"
+               class="action-edit">
+                ✏️ Редактировать
+            </a>
+
+            <div class="action-row recurring-actions">
+                <form method="post" action="/recurring/{{p.id}}/reschedule"
+                      class="reschedule-form">
+                    <input type="date" name="next_date"
+                           value="{{p.next_date}}" required
+                           aria-label="Выбрать новую дату"
+                           class="reschedule-date"
+                           onchange="this.form.requestSubmit()">
+                    <button type="button" class="action-add"
+                            onclick="this.form.querySelector('input[type=date]').showPicker()">
+                        📅 Перенести
+                    </button>
+                </form>
+                <form method="post"
+                      action="/recurring/{{p.id}}/delete"
+                      onsubmit="return confirm('Удалить регулярный платёж «{{p.name}}»?');">
+                    <button type="submit" class="action-delete">
+                        🗑️ Удалить
+                    </button>
+                </form>
+            </div>
         </div>
     {% else %}
         <div class="card">
@@ -2868,6 +3321,137 @@ def export_calendar():
     )
 
     return response
+
+
+
+@app.route("/recurring/<int:payment_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_recurring(payment_id):
+    user = current_user()
+    if not has_access(user):
+        return redirect(url_for("plans"))
+
+    with connect_db() as db:
+        payment = db.execute("""
+            SELECT * FROM recurring_payments
+            WHERE id=? AND user_id=? AND active=1
+        """, (payment_id, user["id"])).fetchone()
+
+        if payment is None:
+            flash("Регулярный платёж не найден.")
+            return redirect(url_for("recurring"))
+
+        if request.method == "POST":
+            name = request.form.get("name", "").strip()
+            category = request.form.get("category", "").strip()
+            frequency = request.form.get("frequency", "").strip()
+            next_date = request.form.get("next_date", "").strip()
+            note = request.form.get("note", "").strip()
+
+            try:
+                amount = float(request.form.get("amount", "0"))
+                datetime.strptime(next_date, "%Y-%m-%d")
+                if (not name or amount <= 0 or category not in CATEGORIES
+                        or frequency not in ("monthly", "weekly", "yearly")):
+                    raise ValueError
+
+                db.execute("""
+                    UPDATE recurring_payments
+                    SET name=?, amount=?, category=?, frequency=?,
+                        next_date=?, note=?
+                    WHERE id=? AND user_id=? AND active=1
+                """, (name, amount, category, frequency, next_date, note,
+                      payment_id, user["id"]))
+                flash("Регулярный платёж обновлён.")
+                return redirect(url_for("recurring"))
+            except (ValueError, TypeError):
+                flash("Проверь название, сумму, категорию, периодичность и дату.")
+
+    content = """
+    <div class="card">
+        <h2>Редактирование платежа</h2>
+        <form method="post">
+            <label>Название</label>
+            <input name="name" value="{{ p.name }}" required>
+
+            <label>Сумма, ₽</label>
+            <input name="amount" type="number" min="0.01" step="0.01"
+                   value="{{ p.amount }}" required>
+
+            <label>Категория</label>
+            <select name="category" required>
+                {% for c in categories %}
+                <option value="{{ c }}" {% if c == p.category %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+
+            <label>Периодичность</label>
+            <select name="frequency" required>
+                <option value="weekly" {% if p.frequency == 'weekly' %}selected{% endif %}>Каждую неделю</option>
+                <option value="monthly" {% if p.frequency == 'monthly' %}selected{% endif %}>Каждый месяц</option>
+                <option value="yearly" {% if p.frequency == 'yearly' %}selected{% endif %}>Каждый год</option>
+            </select>
+
+            <label>Следующий платеж</label>
+            <input name="next_date" type="date" value="{{ p.next_date }}" required>
+
+            <label>Примечание</label>
+            <input name="note" value="{{ p.note or '' }}">
+
+            <button type="submit">Сохранить изменения</button>
+        </form>
+        <p><a href="/recurring">Назад к платежам</a></p>
+    </div>
+    """
+    return page("Редактирование платежа", content,
+                p=payment, categories=CATEGORIES)
+
+
+@app.route("/recurring/<int:payment_id>/reschedule", methods=["POST"])
+@login_required
+def reschedule_recurring(payment_id):
+    user = current_user()
+    if not has_access(user):
+        return redirect(url_for("plans"))
+
+    new_date = request.form.get("next_date", "").strip()
+    try:
+        datetime.strptime(new_date, "%Y-%m-%d")
+        with connect_db() as db:
+            result = db.execute("""
+                UPDATE recurring_payments
+                SET next_date=?
+                WHERE id=? AND user_id=? AND active=1
+            """, (new_date, payment_id, user["id"]))
+            if result.rowcount == 0:
+                flash("Регулярный платёж не найден.")
+                return redirect(url_for("recurring"))
+        flash("Дата следующего платежа перенесена.")
+    except (ValueError, TypeError):
+        flash("Укажи корректную дату переноса.")
+
+    return redirect(url_for("recurring"))
+
+
+@app.route("/recurring/<int:payment_id>/delete", methods=["POST"])
+@login_required
+def delete_recurring(payment_id):
+    user = current_user()
+    if not has_access(user):
+        return redirect(url_for("plans"))
+
+    with connect_db() as db:
+        result = db.execute("""
+            UPDATE recurring_payments
+            SET active=0
+            WHERE id=? AND user_id=? AND active=1
+        """, (payment_id, user["id"]))
+        if result.rowcount:
+            flash("Регулярный платёж удалён.")
+        else:
+            flash("Регулярный платёж не найден.")
+
+    return redirect(url_for("recurring"))
 
 @app.route("/pay-recurring/<int:payment_id>", methods=["POST"])
 @login_required
