@@ -195,6 +195,15 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+
+
+@app.route("/sw.js")
+def service_worker():
+    from flask import send_from_directory
+    response = send_from_directory(app.static_folder, "sw.js")
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 
 DB = "moneytrack.db"
@@ -1163,7 +1172,7 @@ def page(title, content, **context):
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("/static/sw.js").catch(function () {});
+        navigator.serviceWorker.register("/sw.js").catch(function () {});
       });
     }
     </script>
