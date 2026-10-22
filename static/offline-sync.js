@@ -208,12 +208,16 @@
   });
 
   window.addEventListener("load", function () {
-    if (location.pathname === "/login") {
-      try {
-        localStorage.removeItem("moneytrack-offline-user-id");
-      } catch (_) {}
-    } else {
+    if (location.pathname === "/login" ||
+        location.pathname === "/register") {
+      return;
+    }
+
+    const userId = localStorage.getItem("moneytrack-offline-user-id");
+    if (userId) {
       syncPendingChanges();
+    } else {
+      saveServerSnapshot();
     }
   });
 })();
