@@ -520,8 +520,10 @@ h2 {
 }
 
 h3 {
-    font-size: 9px;
+    font-size: 15px;
+    line-height: 1.35;
     margin-top: 0;
+    margin-bottom: 10px;
 }
 
 p {
@@ -791,9 +793,9 @@ hr {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    gap: 4px;
-    padding: 12px 8px;
-    background: rgba(15, 23, 42, 0.5);
+    gap: 2px;
+    padding: 7px 5px;
+    background: rgba(15, 23, 42, 0.92);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     border: 1px solid rgba(148, 163, 184, 0.25);
@@ -808,13 +810,34 @@ hr {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 2px;
-    color: #64748b;
+    gap: 5px;
+    padding: 8px 1px;
+    color: #94a3b8;
     text-decoration: none;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.2;
     border-radius: 16px;
+}
+
+
+.bottom-nav a.nav-operations {
+    flex: 1.35;
+    margin: 0 2px;
+    padding: 9px 3px;
+    border: 1px solid rgba(96, 165, 250, 0.8);
+    border-radius: 16px;
+    background: rgba(37, 99, 235, 0.22);
+    color: #bfdbfe;
+    font-weight: 700;
+}
+.bottom-nav a.nav-operations .nav-icon {
+    font-size: 29px;
+}
+.bottom-nav a.nav-operations.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #60a5fa;
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.35);
 }
 
 .bottom-nav a.active {
@@ -1060,7 +1083,7 @@ def page(title, content, **context):
             <span>Аналитика</span>
         </a>
 
-        <a href="/add" class="{{ 'active' if request.endpoint == 'add' else '' }}">
+        <a href="/transactions" class="nav-operations {{ 'active' if request.endpoint == 'transactions' else '' }}">
             <span class="nav-icon">⇄</span>
             <span>Операции</span>
         </a>
@@ -1264,21 +1287,7 @@ def index():
         chart_gradient = ", ".join(segments)
 
     content = """
-    {% if upcoming_payments %}
-    <div class="card" style="border:1px solid #F59E0B;">
-        <h3>Предстоящий платёж</h3>
-        {% for p in upcoming_payments %}
-        <div style="padding:10px 0;border-bottom:1px solid #2A3850;">
-            <strong>{{ p.name }}</strong>
-            <div class="small">
-                Дата: {{ p.next_date }}
-                {% if p.days_left == 0 %}
-                    — сегодня
-                {% elif p.days_left == 1 %}
-                    — завтра
-                {% else %}
-                    — через {{ p.days_left }} дн.
-                {% endif %}
+
             </div>
             <div class="amount">{{ p.amount|round(2) }} ₽</div>
         </div>
@@ -1319,6 +1328,28 @@ def index():
             </a>
         </div>
     </div>
+
+    {% if upcoming_payments %}
+    <div class="card" style="border:1px solid #F59E0B;">
+        <h3>Предстоящий платёж</h3>
+        {% for p in upcoming_payments %}
+        <div style="padding:10px 0;border-bottom:1px solid #2A3850;">
+            <strong>{{ p.name }}</strong>
+            <div class="small">
+                Дата: {{ p.next_date }}
+                {% if p.days_left == 0 %}
+                    — сегодня
+                {% elif p.days_left == 1 %}
+                    — завтра
+                {% else %}
+                    — через {{ p.days_left }} дн.
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        <a class="primary-link" href="/recurring">Все обязательные платежи →</a>
+    </div>
+    {% endif %}
 
     <div class="card">
         <h3>Остаток за месяц</h3>
@@ -1439,6 +1470,37 @@ def analytics():
     month_balance = month_income - month_expense
     max_value = max(month_income, month_expense, 1)
 
+    chart_colors = [
+        "#38bdf8", "#34d399", "#fbbf24", "#fb7185",
+        "#a78bfa", "#2dd4bf", "#f97316", "#818cf8",
+        "#e879f9", "#a3e635"
+    ]
+    chart_parts = []
+    chart_legend = []
+    angle = 0.0
+
+    for i, category in enumerate(categories):
+        amount = float(category["amount"] or 0)
+        if amount <= 0 or month_expense <= 0:
+            continue
+        next_angle = angle + amount / float(month_expense) * 360
+        color = chart_colors[i % len(chart_colors)]
+        chart_parts.append(
+            f"{color} {angle:.2f}deg {next_angle:.2f}deg"
+        )
+        chart_legend.append({
+            "category": category["category"],
+            "amount": amount,
+            "color": color,
+            "percent": round(amount / float(month_expense) * 100, 1)
+        })
+        angle = next_angle
+
+    chart_gradient = (
+        "conic-gradient(" + ", ".join(chart_parts) + ")"
+        if chart_parts else "#334155"
+    )
+
     content = """
     <div class="card">
         <h3>Статистика за месяц</h3>
@@ -1477,11 +1539,29 @@ def analytics():
 
     <div class="card">
         <h3>Расходы по категориям</h3>
-        {% for c in categories %}
-            <p>{{c.category}} — {{c.amount|round(2)}} ₽</p>
+        {% if chart_legend %}
+        <div style="display:flex;align-items:center;justify-content:center;gap:22px;flex-wrap:wrap;padding:12px 0;">
+            <div style="width:180px;height:180px;max-width:55vw;max-height:55vw;border-radius:50%;background:{{chart_gradient}};position:relative;flex-shrink:0;">
+                <div style="position:absolute;inset:25%;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+                    <span style="font-size:11px;color:var(--muted);">Расходы</span>
+                    <strong style="font-size:14px;overflow-wrap:anywhere;">{{month_expense|round(0)}} ₽</strong>
+                </div>
+            </div>
+            <div style="flex:1;min-width:140px;">
+                {% for c in chart_legend %}
+                <div style="display:flex;align-items:center;gap:8px;margin:10px 0;min-width:0;">
+                    <span style="width:11px;height:11px;min-width:11px;border-radius:3px;background:{{c.color}};"></span>
+                    <div style="min-width:0;overflow-wrap:anywhere;">
+                        <div>{{c.category}}</div>
+                        <div class="small">{{c.amount|round(2)}} ₽ · {{c.percent}}%</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
         {% else %}
             <p class="small">За этот месяц расходов нет.</p>
-        {% endfor %}
+        {% endif %}
     </div>
     """
 
@@ -1492,7 +1572,9 @@ def analytics():
         month_expense=month_expense,
         month_balance=month_balance,
         max_value=max_value,
-        categories=categories
+        categories=categories,
+        chart_gradient=chart_gradient,
+        chart_legend=chart_legend
     )
 
 
@@ -1629,6 +1711,66 @@ def add_user_category():
         return jsonify({"error": result}), 400
 
     return jsonify({"name": result})
+
+
+
+@app.route("/transactions")
+@login_required
+def transactions():
+    user = current_user()
+
+    with connect_db() as db:
+        rows = db.execute("""
+            SELECT id, kind, amount, category, note, created
+            FROM transactions
+            WHERE user_id=?
+            ORDER BY id DESC
+        """, (user["id"],)).fetchall()
+
+    content = """
+    <div class="card">
+        <h2>Операции</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <a class="primary-link" href="/add?kind=income"
+               style="flex:1;text-align:center;background:#059669;">＋ Доход</a>
+            <a class="primary-link" href="/add?kind=expense"
+               style="flex:1;text-align:center;background:#dc2626;">− Расход</a>
+        </div>
+        <a href="/add" style="display:block;margin-top:12px;text-align:center;">＋ Другой тип операции</a>
+    </div>
+
+    <div class="card">
+        <h3>Все операции</h3>
+        {% for t in rows %}
+        <div style="padding:12px 0;border-bottom:1px solid var(--border);overflow-wrap:anywhere;">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+                <strong>{{ t.category or 'Без категории' }}</strong>
+                <strong class="{{ 'income' if t.kind == 'income' else 'expense' }}" style="white-space:nowrap;">
+                    {{ '+' if t.kind == 'income' else '−' }}{{ t.amount|round(2) }} ₽
+                </strong>
+            </div>
+            {% if t.note %}
+            <div style="margin-top:5px;">{{ t.note }}</div>
+            {% endif %}
+            <div class="small" style="margin:5px 0 8px;">{{ t.created }}</div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <a href="/edit/{{ t.id }}">Редактировать</a>
+                <form method="post" action="/delete/{{ t.id }}"
+                      onsubmit="return confirm('Удалить эту операцию?');"
+                      style="margin:0;">
+                    <button type="submit" style="width:auto;margin:0;padding:6px 10px;">
+                        Удалить
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <p class="small">Операций пока нет. Добавь первую операцию.</p>
+        {% endfor %}
+    </div>
+    """
+
+    return page("Все операции", content, user=user, rows=rows)
 
 
 @app.route("/add", methods=["GET", "POST"])
