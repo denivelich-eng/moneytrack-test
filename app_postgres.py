@@ -1546,9 +1546,9 @@ def analytics():
     <div class="card">
         <h3>Статистика за месяц</h3>
         <form method="get">
-            <label>Выбери месяц</label>
             <input type="month" name="month"
                    value="{{selected_month}}" required>
+            <label>Выбери месяц</label>
             <button type="submit">Показать</button>
         </form>
 
@@ -1626,12 +1626,11 @@ def register():
     <div class="card">
     <h2>Регистрация</h2>
     <form method="post">
-        <input name="contact"
+        <input name="contact" placeholder="Номер телефона или email"
 
                autocomplete="username" required
                style="width:56%;display:block;margin-left:auto;margin-right:auto;box-sizing:border-box;">
-        <input name="password" type="password"
-
+        <input name="password" type="password" placeholder="Пароль (минимум 8 символов)"
                autocomplete="new-password" required
                style="width:56%;display:block;margin-left:auto;margin-right:auto;box-sizing:border-box;">
         <button type="submit" class="auth-submit">Зарегистрироваться</button>
@@ -1696,8 +1695,8 @@ def login():
     <div class="card">
     <h2>Вход</h2>
     <form method="post">
-        <input name="login"  required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
-        <input name="password" type="password"
+        <input name="login" placeholder="Номер телефона или email" required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+        <input name="password" type="password" placeholder="Пароль"
                 required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
         <button type="submit" class="auth-submit">Войти</button>
     </form>
@@ -1834,7 +1833,6 @@ def add_transaction():
     <div class="card">
         <h2>Новая операция</h2>
         <form method="post">
-            <label>Тип операции</label>
             <select name="kind" id="operationKind" required>
                 <option value="expense"
                     {% if request.args.get('kind', 'expense') == 'expense' %}selected{% endif %}>
@@ -1845,8 +1843,8 @@ def add_transaction():
                     Доход
                 </option>
             </select>
+            <label>Тип операции</label>
 
-            <label>Счёт</label>
             <select name="account_id" id="account-select" required>
                 <option value="" disabled
                     {% if not request.args.get('account_id') %}selected{% endif %}>
@@ -1860,11 +1858,11 @@ def add_transaction():
                 {% endfor %}
                 <option value="__add__">＋ Создать новый счёт</option>
             </select>
+            <label>Счёт</label>
 
             <div id="new-account-fields" style="display:none;margin-top:10px;">
-                <label>Название нового счёта</label>
                 <input name="new_account_name" id="new-account-name"
-                       maxlength="60" >
+                       maxlength="60"  placeholder="Название нового счёта">
 
                 <label>Начальный баланс, ₽</label>
                 <input name="new_account_balance" id="new-account-balance"
@@ -1875,9 +1873,8 @@ def add_transaction():
                 <small>После создания вернёшься к операции с выбранным счётом.</small>
             </div>
 
-            <label>Сумма</label>
             <input name="amount" type="number" min="0.01"
-                   step="0.01"  required>
+                   step="0.01"  required placeholder="Сумма">
 
             <label>Категория</label>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -1888,8 +1885,7 @@ def add_transaction():
             </div>
             <small id="categoryHint">Выбери категорию операции</small>
 
-            <label>Комментарий</label>
-            <input name="note" maxlength="200" >
+            <input name="note" maxlength="200"  placeholder="Комментарий">
 
             <button type="submit"
                     style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">
@@ -2143,7 +2139,6 @@ def edit_transaction(transaction_id):
     <div class="card">
         <h2>Редактировать операцию</h2>
         <form method="post">
-            <label>Тип операции</label>
             <select name="kind" id="operationKind" required>
                 <option value="expense"
                     {% if transaction.kind == 'expense' %}selected{% endif %}>
@@ -2154,17 +2149,18 @@ def edit_transaction(transaction_id):
                     Доход
                 </option>
             </select>
+            <label>Тип операции</label>
 
-            <label>Сумма</label>
             <input name="amount" type="number" min="0.01" step="0.01"
                    value="{{ transaction.amount }}" required>
+            <label>Сумма</label>
 
-            <label>Категория</label>
             <select name="category" id="operationCategory" required></select>
+            <label>Категория</label>
 
-            <label>Комментарий</label>
             <input name="note" maxlength="200"
                    value="{{ transaction.note or '' }}">
+            <label>Комментарий</label>
 
             <button type="submit">Сохранить изменения</button>
         </form>
@@ -2415,8 +2411,8 @@ def accounts():
                     <form method="post">
                         <input type="hidden" name="action" value="update_name">
                         <input type="hidden" name="account_id" value="{{ account["id"] }}">
-                        <label>Название счёта</label>
                         <input name="name" value="{{ account["name"] }}" maxlength="60" required>
+                        <label>Название счёта</label>
                         <button type="submit">Сохранить название</button>
                     </form>
                     <form method="post">
@@ -2427,8 +2423,8 @@ def accounts():
                     <form method="post">
                         <input type="hidden" name="action" value="update_balance">
                         <input type="hidden" name="account_id" value="{{ account["id"] }}">
-                        <label>Баланс</label>
                         <input name="balance" type="number" step="0.01" value="{{ account["balance"] }}" required>
+                        <label>Баланс</label>
                         <button type="submit">Сохранить баланс</button>
                     </form>
                 </div>
@@ -2589,17 +2585,14 @@ def debts():
     <div class="card">
         <h3>Добавить долг</h3>
         <form method="post">
-            <label>Тип долга</label>
             <select name="direction" required>
                 <option value="i_owe">Я должен</option>
                 <option value="owed_to_me">Должны мне</option>
             </select>
-            <label>Кому или от кого</label>
-            <input name="person" maxlength="100" required>
-            <label>Сумма в рублях</label>
-            <input name="amount" type="number" min="0.01" step="0.01" required>
-            <label>Комментарий</label>
-            <input name="note" maxlength="200">
+            <label>Тип долга</label>
+            <input name="person" maxlength="100" required placeholder="Кому или от кого">
+            <input name="amount" type="number" min="0.01" step="0.01" required placeholder="Сумма в рублях">
+            <input name="note" maxlength="200" placeholder="Комментарий">
             <button type="submit">Добавить долг</button>
         </form>
         <a href="/">На главную</a>
@@ -2619,12 +2612,10 @@ def debts():
                 <form method="post">
                     <input type="hidden" name="action" value="repay">
                     <input type="hidden" name="debt_id" value="{{ d.id }}">
-                    <label>Сумма погашения, ₽</label>
                     <input name="payment_amount" type="number"
                            min="0.01"
                            max="{{ d.amount - (d.paid_amount or 0) }}"
-                           step="0.01" required>
-                    <label>Счёт</label>
+                           step="0.01" required placeholder="Сумма погашения, ₽">
                     <select name="account_id" required>
                         <option value="" disabled selected>
                             Выбери счёт
@@ -2635,6 +2626,7 @@ def debts():
                             </option>
                         {% endfor %}
                     </select>
+                    <label>Счёт</label>
                     <button type="submit">Записать погашение</button>
                 </form>
             {% else %}
@@ -2766,9 +2758,8 @@ def investments():
     <div class="card">
         <h3>Добавить инвестицию</h3>
         <form method="post">
-            <label>Название актива</label>
             <input name="name" maxlength="100"
-                    required>
+                    required placeholder="Название актива">
 
             <label>Тип актива</label>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -2781,7 +2772,6 @@ def investments():
                         style="width:auto;padding:8px 14px;">+</button>
             </div>
 
-            <label>С какого счёта вложить деньги</label>
             <select name="account_id" required>
                 <option value="">Выбери счёт</option>
                 {% for account in accounts %}
@@ -2790,17 +2780,15 @@ def investments():
                 </option>
                 {% endfor %}
             </select>
+            <label>С какого счёта вложить деньги</label>
 
-            <label>Вложенная сумма, ₽</label>
             <input name="amount" type="number" min="0.01"
-                   step="0.01" required>
+                   step="0.01" required placeholder="Вложенная сумма, ₽">
 
-            <label>Текущая стоимость, ₽</label>
             <input name="current_value" type="number" min="0"
-                   step="0.01" required>
+                   step="0.01" required placeholder="Текущая стоимость, ₽">
 
-            <label>Комментарий</label>
-            <input name="note" maxlength="200">
+            <input name="note" maxlength="200" placeholder="Комментарий">
 
             <button type="submit" style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">Добавить инвестицию</button>
         </form>
@@ -2863,7 +2851,6 @@ def investments():
                 <summary>Пополнить инвестицию</summary>
                 <form method="post"
                       action="{{ url_for('add_to_investment', investment_id=item.id) }}">
-                    <label>С какого счёта</label>
                     <select name="account_id" required>
                         <option value="">Выбери счёт</option>
                         {% for account in accounts %}
@@ -2872,9 +2859,9 @@ def investments():
                         </option>
                         {% endfor %}
                     </select>
-                    <label>Сумма пополнения, ₽</label>
+                    <label>С какого счёта</label>
                     <input name="amount" type="number" min="0.01"
-                           step="0.01" required>
+                           step="0.01" required placeholder="Сумма пополнения, ₽">
                     <button type="submit">Пополнить</button>
                 </form>
             </details>
@@ -3039,9 +3026,9 @@ def edit_investment(investment_id):
     <div class="card">
         <h2>Редактировать инвестицию</h2>
         <form method="post">
-            <label>Название актива</label>
             <input name="name" maxlength="100"
                    value="{{ item.name }}" required>
+            <label>Название актива</label>
 
             <label>Тип актива</label>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -3061,12 +3048,12 @@ def edit_investment(investment_id):
             <p>{{ item.amount|round(2) }} ₽</p>
             <p class="small">Изменяется автоматически при пополнении со счёта.</p>
 
-            <label>Текущая стоимость, ₽</label>
             <input name="current_value" type="number" min="0"
                    step="0.01" value="{{ item.current_value or 0 }}" required>
+            <label>Текущая стоимость, ₽</label>
 
-            <label>Комментарий</label>
             <input name="note" maxlength="200" value="{{ item.note or '' }}">
+            <label>Комментарий</label>
 
             <button type="submit">Сохранить изменения</button>
         </form>
@@ -3266,16 +3253,15 @@ def budgets():
         <p class="small">Месяц: {{current_month}}</p>
 
         <form method="post">
-            <label>Категория</label>
             <select name="category" required>
                 {% for c in categories %}
                     <option value="{{c}}">{{c}}</option>
                 {% endfor %}
             </select>
+            <label>Категория</label>
 
-            <label>Лимит на месяц, ₽</label>
             <input name="amount" type="number"
-                   min="0.01" step="0.01" required>
+                   min="0.01" step="0.01" required placeholder="Лимит на месяц, ₽">
 
             <button type="submit">Сохранить бюджет</button>
         </form>
@@ -3471,14 +3457,12 @@ def goals():
         <p class="small">Создавай цели и отслеживай накопления.</p>
         <form method="post">
             <input type="hidden" name="action" value="create">
-            <label>Название цели</label>
             <input name="name" maxlength="100"
-                    required>
-            <label>Сколько нужно накопить, ₽</label>
+                    required placeholder="Название цели">
             <input name="target_amount" type="number"
-                   min="0.01" step="0.01" required>
-            <label>Желаемая дата (необязательно)</label>
+                   min="0.01" step="0.01" required placeholder="Сколько нужно накопить, ₽">
             <input name="target_date" type="date">
+            <label>Желаемая дата (необязательно)</label>
             <button type="submit">Создать цель</button>
         </form>
     </div>
@@ -3507,13 +3491,13 @@ def goals():
             <form method="post">
                 <input type="hidden" name="action" value="edit">
                 <input type="hidden" name="goal_id" value="{{ g.id }}">
-                <label>Название</label>
                 <input name="name" maxlength="100" value="{{ g.name }}" required>
-                <label>Целевая сумма, ₽</label>
+                <label>Название</label>
                 <input name="target_amount" type="number" min="0.01" step="0.01"
                        value="{{ g.target_amount }}" required>
-                <label>Желаемая дата</label>
+                <label>Целевая сумма, ₽</label>
                 <input name="target_date" type="date" value="{{ g.target_date }}">
+                <label>Желаемая дата</label>
                 <button type="submit">Сохранить изменения</button>
             </form>
         </details>
@@ -3521,7 +3505,6 @@ def goals():
         <form id="goal-add-{{ g.id }}" method="post" style="margin-top:12px;">
             <input type="hidden" name="action" value="add">
             <input type="hidden" name="goal_id" value="{{ g.id }}">
-            <label>С какого счёта пополнить</label>
             <select name="account_id" required>
                 <option value="">Выбери счёт</option>
                 {% for account in accounts %}
@@ -3530,8 +3513,8 @@ def goals():
                 </option>
                 {% endfor %}
             </select>
-            <label>Добавить к накоплениям, ₽</label>
-            <input name="amount" type="number" min="0.01" step="0.01" required>
+            <label>С какого счёта пополнить</label>
+            <input name="amount" type="number" min="0.01" step="0.01" required placeholder="Добавить к накоплениям, ₽">
         </form>
 
         <div class="button-row">
@@ -3787,32 +3770,29 @@ def recurring():
         </p>
 
         <form method="post">
-            <label>Название платежа</label>
-            <input name="name"  required>
+            <input name="name"  required placeholder="Название платежа">
 
-            <label>Сумма, ₽</label>
             <input name="amount" type="number"
-                   min="0.01" step="0.01" required>
+                   min="0.01" step="0.01" required placeholder="Сумма, ₽">
 
-            <label>Категория</label>
             <select name="category" required>
                 {% for c in categories %}
                     <option value="{{c}}">{{c}}</option>
                 {% endfor %}
             </select>
+            <label>Категория</label>
 
-            <label>Периодичность</label>
             <select name="frequency" required>
                 <option value="monthly">Каждый месяц</option>
                 <option value="weekly">Каждую неделю</option>
                 <option value="yearly">Каждый год</option>
             </select>
+            <label>Периодичность</label>
 
-            <label>Дата следующего платежа</label>
             <input name="next_date" type="date" required>
+            <label>Дата следующего платежа</label>
 
-            <label>Примечание</label>
-            <input name="note" >
+            <input name="note"  placeholder="Примечание">
 
             <button type="submit">Добавить платеж</button>
         </form>
@@ -3841,7 +3821,6 @@ def recurring():
     {% endif %}
 </p>
 <form method="post" action="/pay-recurring/{{p.id}}" onsubmit="return confirm('Подтвердить оплату на сумму {{p.amount}} ₽ со счёта: ' + this.account_id.options[this.account_id.selectedIndex].text + '?');">
-                <label>Списать со счёта</label>
                 <select name="account_id" required>
                     <option value="" disabled selected>Выбери счёт</option>
                     {% for a in accounts %}
@@ -3850,6 +3829,7 @@ def recurring():
                         </option>
                     {% endfor %}
                 </select>
+                <label>Списать со счёта</label>
                 <button type="submit">Оплатить</button>
             </form>
             <p>
@@ -3955,15 +3935,14 @@ def edit_recurring(payment_id):
     <div class="card">
         <h2>Редактирование платежа</h2>
         <form method="post">
-            <label>Название платежа</label>
             <input name="name" maxlength="100"
                    value="{{ payment['name'] }}" required>
+            <label>Название платежа</label>
 
-            <label>Сумма, ₽</label>
             <input name="amount" type="number" min="0.01" step="0.01"
                    value="{{ payment['amount'] }}" required>
+            <label>Сумма, ₽</label>
 
-            <label>Категория</label>
             <select name="category" required>
                 {% for c in categories %}
                 <option value="{{ c }}"
@@ -3972,8 +3951,8 @@ def edit_recurring(payment_id):
                 </option>
                 {% endfor %}
             </select>
+            <label>Категория</label>
 
-            <label>Периодичность</label>
             <select name="frequency" required>
                 <option value="monthly"
                     {% if payment['frequency'] == 'monthly' %}selected{% endif %}>
@@ -3988,14 +3967,15 @@ def edit_recurring(payment_id):
                     Каждый год
                 </option>
             </select>
+            <label>Периодичность</label>
 
-            <label>Дата следующего платежа</label>
             <input name="next_date" type="date"
                    value="{{ payment['next_date'] }}" required>
+            <label>Дата следующего платежа</label>
 
-            <label>Примечание</label>
             <input name="note" maxlength="500"
                    value="{{ payment['note'] or '' }}">
+            <label>Примечание</label>
 
             <button type="submit">Сохранить изменения</button>
         </form>
