@@ -1049,6 +1049,58 @@ button.btn-danger,
     border: 1px solid #FB7185 !important;
 }
 
+
+/* MONEYTRACK UI CLEANUP */
+main {
+    text-align: left;
+}
+.card {
+    text-align: left;
+}
+.card h1,
+.card h2,
+.card h3,
+.card p,
+.card label {
+    text-align: left;
+}
+
+/* Компактная нижняя панель без уменьшения области нажатия */
+.bottom-nav {
+    padding: 5px 4px;
+}
+.bottom-nav a {
+    padding: 6px 1px;
+    gap: 4px;
+    font-size: 10px;
+}
+.bottom-nav .nav-icon {
+    font-size: 22px;
+}
+.bottom-nav a.nav-operations .nav-icon {
+    font-size: 26px;
+}
+body {
+    padding-bottom: 125px;
+}
+
+/* Единый вид активной вкладки Операции */
+.bottom-nav a.nav-operations {
+    padding: 7px 3px;
+}
+.bottom-nav a.nav-operations .nav-icon {
+    font-size: 26px;
+}
+.bottom-nav a.nav-operations.active {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: #ffffff;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.16);
+}
+.bottom-nav a.nav-operations.active .nav-icon {
+    color: #0f172a;
+}
+
 </style>
 """
 
@@ -1575,11 +1627,11 @@ def register():
     <h2>Регистрация</h2>
     <form method="post">
         <input name="contact"
-               placeholder="Введите номер телефона или email"
+
                autocomplete="username" required
                style="width:56%;display:block;margin-left:auto;margin-right:auto;box-sizing:border-box;">
         <input name="password" type="password"
-               placeholder="Пароль от приложения"
+
                autocomplete="new-password" required
                style="width:56%;display:block;margin-left:auto;margin-right:auto;box-sizing:border-box;">
         <button type="submit" class="auth-submit">Зарегистрироваться</button>
@@ -1644,9 +1696,9 @@ def login():
     <div class="card">
     <h2>Вход</h2>
     <form method="post">
-        <input name="login" placeholder="Номер телефона или email" required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+        <input name="login"  required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
         <input name="password" type="password"
-               placeholder="Пароль" required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+                required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
         <button type="submit" class="auth-submit">Войти</button>
     </form>
     <a href="/register">Создать аккаунт</a>
@@ -1812,11 +1864,11 @@ def add_transaction():
             <div id="new-account-fields" style="display:none;margin-top:10px;">
                 <label>Название нового счёта</label>
                 <input name="new_account_name" id="new-account-name"
-                       maxlength="60" placeholder="Например, Основная карта">
+                       maxlength="60" >
 
                 <label>Начальный баланс, ₽</label>
                 <input name="new_account_balance" id="new-account-balance"
-                       type="number" step="0.01" value="0" placeholder="0">
+                       type="number" step="0.01" value="0" >
 
                 <button type="submit" name="action" value="create_account"
                         formnovalidate>Создать счёт</button>
@@ -1825,7 +1877,7 @@ def add_transaction():
 
             <label>Сумма</label>
             <input name="amount" type="number" min="0.01"
-                   step="0.01" placeholder="Сумма в рублях" required>
+                   step="0.01"  required>
 
             <label>Категория</label>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -1837,7 +1889,7 @@ def add_transaction():
             <small id="categoryHint">Выбери категорию операции</small>
 
             <label>Комментарий</label>
-            <input name="note" maxlength="200" placeholder="Комментарий">
+            <input name="note" maxlength="200" >
 
             <button type="submit"
                     style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">
@@ -2388,9 +2440,9 @@ def accounts():
     <div class="card">
     <h2>Добавить новый счёт</h2>
     <form method="post">
-        <input name="name" placeholder="Например, наличные" required>
+        <input name="name"  required>
         <input name="balance" type="number" step="0.01"
-               placeholder="Начальный баланс" value="0">
+                value="0">
         <button>Добавить</button>
     </form>
     <a href="/">Назад</a>
@@ -2716,7 +2768,7 @@ def investments():
         <form method="post">
             <label>Название актива</label>
             <input name="name" maxlength="100"
-                   placeholder="Например, Bitcoin" required>
+                    required>
 
             <label>Тип актива</label>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -3421,7 +3473,7 @@ def goals():
             <input type="hidden" name="action" value="create">
             <label>Название цели</label>
             <input name="name" maxlength="100"
-                   placeholder="Например, финансовая подушка" required>
+                    required>
             <label>Сколько нужно накопить, ₽</label>
             <input name="target_amount" type="number"
                    min="0.01" step="0.01" required>
@@ -3736,7 +3788,7 @@ def recurring():
 
         <form method="post">
             <label>Название платежа</label>
-            <input name="name" placeholder="Например, аренда" required>
+            <input name="name"  required>
 
             <label>Сумма, ₽</label>
             <input name="amount" type="number"
@@ -3760,7 +3812,7 @@ def recurring():
             <input name="next_date" type="date" required>
 
             <label>Примечание</label>
-            <input name="note" placeholder="Необязательно">
+            <input name="note" >
 
             <button type="submit">Добавить платеж</button>
         </form>
