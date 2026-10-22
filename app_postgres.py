@@ -1108,8 +1108,16 @@ def page(title, content, **context):
     template = """
     <!doctype html>
     <html lang="ru">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="MoneyTrack">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
     <title>{{title}}</title>
     """ + STYLE + """
     <header>MoneyTrack</header>
@@ -1152,6 +1160,13 @@ def page(title, content, **context):
     </nav>
     {% endif %}
 
+    <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/static/sw.js").catch(function () {});
+      });
+    }
+    </script>
     </html>
 
     """
