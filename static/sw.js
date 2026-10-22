@@ -1,8 +1,10 @@
-const CACHE_NAME = "moneytrack-shell-v2";
+const CACHE_NAME = "moneytrack-shell-v3";
 const SHELL_FILES = [
   "/static/manifest.json",
   "/static/icon-192.png",
-  "/static/icon-512.png"
+  "/static/icon-512.png",
+  "/static/offline.html",
+  "/static/offline-db.js"
 ];
 
 self.addEventListener("install", (event) => {
@@ -32,7 +34,18 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // Только публичные статические файлы. HTML и финансовые данные не кэшируем.
+  // Для перехода по страницам при сетевой ошибке показываем офлайн-оболочку.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const offlinePage = await caches.match("/static/offline.html");
+        return offlinePage || Response.error();
+      })
+    );
+    return;
+  }
+
+  // Только публичные статические файлы. Финансовые страницы и API не кэшируем.
   if (
     url.pathname.startsWith("/static/") &&
     !url.pathname.includes("..")

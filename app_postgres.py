@@ -190,7 +190,7 @@ from functools import wraps
 
 from flask import (
     Flask, request, redirect, url_for,
-    session, render_template_string, flash
+    session, render_template_string, flash, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -1125,6 +1125,8 @@ def page(title, content, **context):
     <meta name="apple-mobile-web-app-title" content="MoneyTrack">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/static/manifest.json">
+    <script src="/static/offline-db.js" defer></script>
+    <script src="/static/offline-sync.js" defer></script>
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <title>{{title}}</title>
@@ -1182,6 +1184,262 @@ def page(title, content, **context):
     return render_template_string(
         template, title=title, **context
     )
+
+
+
+@app.route("/api/offline/snapshot", methods=["GET"])
+def offline_snapshot():
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "Требуется вход"}), 401
+
+    user_id = session["user_id"]
+    db = connect_db()
+    try:
+        tables = {
+            "transactions": (
+                "SELECT id, kind, amount, category, note, created, account_id "
+                "FROM transactions WHERE user_id=? ORDER BY id DESC"
+            ),
+            "accounts": (
+                "SELECT id, name, balance FROM accounts "
+                "WHERE user_id=? ORDER BY id"
+            ),
+            "budgets": (
+                "SELECT id, category, amount FROM budgets "
+                "WHERE user_id=? ORDER BY id"
+            ),
+            "debts": (
+                "SELECT id, direction, person, amount, paid_amount, note, created "
+                "FROM debts WHERE user_id=? ORDER BY id DESC"
+            ),
+            "investments": (
+                "SELECT id, name, asset_type, amount, current_value, note, created "
+                "FROM investments WHERE user_id=? ORDER BY id DESC"
+            ),
+            "investment_history": (
+                "SELECT id, investment_id, amount, current_value, recorded_at "
+                "FROM investment_history WHERE user_id=? ORDER BY id DESC"
+            ),
+            "recurring_payments": (
+                "SELECT id, name, amount, category, frequency, next_date, "
+                "note, active, created FROM recurring_payments "
+                "WHERE user_id=? ORDER BY id DESC"
+            ),
+            "financial_goals": (
+                "SELECT id, name, target_amount, saved_amount, target_date, created "
+                "FROM financial_goals WHERE user_id=? ORDER BY id DESC"
+            ),
+            "user_categories": (
+                "SELECT id, kind, name FROM user_categories "
+                "WHERE user_id=? ORDER BY id"
+            ),
+        }
+
+        data = {}
+        for name, sql in tables.items():
+            rows = db.execute(sql, (user_id,)).fetchall()
+            data[name] = [dict(row) for row in rows]
+
+        response = jsonify({"ok": True, "user_id": user_id, "data": data})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    finally:
+        db.close()
+
+
+@app.route("/api/offline/sync", methods=["POST"])
+def offline_sync():
+    import math
+
+    if "user_id" not in session:
+        return jsonify({"ok": False, "error": "Требуется вход"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    changes = payload.get("changes", [])
+
+    if not isinstance(changes, list) or len(changes) > 100:
+        return jsonify({
+            "ok": False,
+            "error": "Ожидается список не более чем из 100 изменений"
+        }), 400
+
+    user_id = session["user_id"]
+    results = []
+
+    for item in changes:
+        if not isinstance(item, dict):
+            results.append({"ok": False, "error": "Некорректное изменение"})
+            continue
+
+        client_id = str(item.get("client_change_id", "")).strip()
+        transaction = item.get("transaction", {})
+
+        if (
+            item.get("action") != "create_transaction"
+            or not client_id
+            or len(client_id) > 100
+            or not isinstance(transaction, dict)
+        ):
+            results.append({
+                "ok": False,
+                "client_change_id": client_id,
+                "error": "Неподдерживаемый тип изменения"
+            })
+            continue
+
+        kind = transaction.get("kind")
+        category = str(transaction.get("category", "")).strip()
+        note = str(transaction.get("note", "")).strip()
+        created = str(transaction.get("created", "")).strip()
+
+        try:
+            amount = float(transaction.get("amount"))
+            account_id = int(transaction.get("account_id"))
+        except (TypeError, ValueError, OverflowError):
+            results.append({
+                "ok": False,
+                "client_change_id": client_id,
+                "error": "Укажи корректную сумму и счёт"
+            })
+            continue
+
+        if (
+            kind not in ("income", "expense")
+            or not math.isfinite(amount)
+            or amount <= 0
+            or len(category) > 40
+            or not category
+            or len(note) > 200
+        ):
+            results.append({
+                "ok": False,
+                "client_change_id": client_id,
+                "error": "Некорректные данные операции"
+            })
+            continue
+
+        if not category_is_valid(user_id, kind, category):
+            results.append({
+                "ok": False,
+                "client_change_id": client_id,
+                "error": "Категория не найдена для этого типа операции"
+            })
+            continue
+
+        if not created or len(created) > 40:
+            created = datetime.now().strftime("%d.%m.%Y %H:%M")
+
+        try:
+            with connect_db() as db:
+                db.execute("""
+                    CREATE TABLE IF NOT EXISTS offline_sync_log (
+                        id BIGSERIAL PRIMARY KEY,
+                        user_id BIGINT NOT NULL,
+                        client_change_id TEXT NOT NULL,
+                        transaction_id BIGINT,
+                        processed_at TEXT NOT NULL,
+                        UNIQUE (user_id, client_change_id)
+                    )
+                """)
+
+                # Ключ регистрируется в той же транзакции, что и операция.
+                # При ошибке вся транзакция откатится.
+                inserted = db.execute("""
+                    INSERT INTO offline_sync_log
+                        (user_id, client_change_id, transaction_id, processed_at)
+                    VALUES (?, ?, NULL, ?)
+                    ON CONFLICT (user_id, client_change_id) DO NOTHING
+                    RETURNING client_change_id
+                """, (
+                    user_id,
+                    client_id,
+                    datetime.now().isoformat(timespec="seconds")
+                )).fetchone()
+
+                if inserted is None:
+                    previous = db.execute(
+                        "SELECT transaction_id FROM offline_sync_log "
+                        "WHERE user_id=? AND client_change_id=?",
+                        (user_id, client_id)
+                    ).fetchone()
+
+                    if previous is None or previous["transaction_id"] is None:
+                        raise RuntimeError(
+                            "Повторный ключ найден без ID сохранённой операции"
+                        )
+
+                    results.append({
+                        "ok": True,
+                        "duplicate": True,
+                        "client_change_id": client_id,
+                        "transaction_id": previous["transaction_id"]
+                    })
+                    continue
+
+                account = db.execute(
+                    "SELECT id, balance FROM accounts WHERE id=? AND user_id=?",
+                    (account_id, user_id)
+                ).fetchone()
+
+                if account is None:
+                    raise ValueError("Счёт не найден в вашем аккаунте")
+
+                balance = float(account["balance"] or 0)
+
+                if kind == "expense" and amount > balance:
+                    raise ValueError(
+                        "Недостаточно средств на счёте. "
+                        "Проверь актуальный баланс после подключения к интернету."
+                    )
+
+                transaction_id = db.execute("""
+                    INSERT INTO transactions
+                        (user_id, kind, amount, category, note, created, account_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id
+                """, (
+                    user_id, kind, amount, category, note, created, account_id
+                )).fetchone()["id"]
+
+                delta = amount if kind == "income" else -amount
+                db.execute(
+                    "UPDATE accounts SET balance=balance+? WHERE id=? AND user_id=?",
+                    (delta, account_id, user_id)
+                )
+
+                db.execute("""
+                    UPDATE offline_sync_log
+                    SET transaction_id=?
+                    WHERE user_id=? AND client_change_id=?
+                """, (transaction_id, user_id, client_id))
+
+            results.append({
+                "ok": True,
+                "duplicate": False,
+                "client_change_id": client_id,
+                "transaction_id": transaction_id
+            })
+
+        except ValueError as exc:
+            results.append({
+                "ok": False,
+                "client_change_id": client_id,
+                "error": str(exc)
+            })
+        except Exception:
+            app.logger.exception("Offline transaction sync failed")
+            results.append({
+                "ok": False,
+                "client_change_id": client_id,
+                "error": "Ошибка сервера при сохранении. Изменение оставлено в очереди."
+            })
+
+    response = jsonify({
+        "ok": all(result.get("ok") for result in results),
+        "results": results
+    })
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.route("/")
