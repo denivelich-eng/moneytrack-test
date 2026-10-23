@@ -44,7 +44,6 @@
       const userId = String(result.user_id);
       localStorage.setItem("moneytrack-offline-user-id", userId);
 
-      // Если есть неотправленные записи, НЕ перезаписываем блокнот с сервера, чтобы их не потерять
       const pending = await db.getPendingChanges(userId);
       if (pending && pending.length) {
         setStatus("pending-local-changes");
