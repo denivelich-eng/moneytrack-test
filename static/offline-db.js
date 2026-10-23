@@ -3,8 +3,8 @@
 
   const DB_NAME = "moneytrack_offline";
   const DB_VERSION = 2;
-  const STORE_NAME = "snapshots";
-  const QUEUE_STORE = "pending_changes";
+  const SNAPSHOTS = "snapshots";
+  const QUEUE = "pending_changes";
 
   function openDB() {
     return new Promise(function (resolve, reject) {
@@ -17,36 +17,121 @@
 
       request.onupgradeneeded = function () {
         const db = request.result;
+        const tx = request.transaction;
 
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: "id" });
+        if (!db.objectStoreNames.contains(SNAPSHOTS)) {
+          db.createObjectStore(SNAPSHOTS, { keyPath: "id" });
         }
-        if (!db.objectStoreNames.contains(QUEUE_STORE)) {
-          const queue = db.createObjectStore(QUEUE_STORE, {
+
+        let queue;
+
+        if (!db.objectStoreNames.contains(QUEUE)) {
+          queue = db.createObjectStore(QUEUE, {
             keyPath: "id",
             autoIncrement: true
           });
-          queue.createIndex("userId", "userId", { unique: false });
+        } else {
+          queue = tx.objectStore(QUEUE);
+        }
+
+        if (!queue.indexNames.contains("userId")) {
+          queue.createIndex("userId", "userId", {
+            unique: false
+          });
         }
       };
 
       request.onsuccess = function () {
-        resolve(request.result);
+        const db = request.result;
+        db.onversionchange = function () {
+          db.close();
+        };
+        resolve(db);
       };
 
       request.onerror = function () {
-        reject(request.error || new Error("Не удалось открыть IndexedDB"));
+        reject(request.error || new Error("Не удалось открыть базу"));
+      };
+
+      request.onblocked = function () {
+        console.warn("MoneyTrack: обновление базы ожидает закрытия другой вкладки");
       };
     });
   }
 
+  function runTransaction(storeName, mode, action) {
+    return openDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        let tx;
+        let result;
+
+        try {
+          tx = db.transaction(storeName, mode);
+          result = action(tx.objectStore(storeName), tx);
+        } catch (error) {
+          db.close();
+          reject(error);
+          return;
+        }
+
+        tx.oncomplete = function () {
+          db.close();
+          resolve(result);
+        };
+
+        tx.onerror = function () {
+          db.close();
+          reject(tx.error || new Error("Ошибка транзакции"));
+        };
+
+        tx.onabort = function () {
+          db.close();
+          reject(tx.error || new Error("Транзакция отменена"));
+        };
+      });
+    });
+  }
+
+  function readOne(storeName, key) {
+    return openDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        const tx = db.transaction(storeName, "readonly");
+        const request = tx.objectStore(storeName).get(key);
+        let result = null;
+
+        request.onsuccess = function () {
+          result = request.result || null;
+        };
+
+        tx.oncomplete = function () {
+          db.close();
+          resolve(result);
+        };
+
+        tx.onerror = function () {
+          db.close();
+          reject(tx.error || new Error("Не удалось прочитать данные"));
+        };
+
+        tx.onabort = function () {
+          db.close();
+          reject(tx.error || new Error("Чтение отменено"));
+        };
+      });
+    });
+  }
+
   async function saveSnapshot(userId, data) {
+    if (userId === undefined || userId === null || !data) {
+      throw new Error("Не указан пользователь или данные снимка");
+    }
+
     const db = await openDB();
 
     return new Promise(function (resolve, reject) {
-      const tx = db.transaction(STORE_NAME, "readwrite");
+      const tx = db.transaction(SNAPSHOTS, "readwrite");
 
-      tx.objectStore(STORE_NAME).put({
+      tx.objectStore(SNAPSHOTS).put({
         id: "user:" + String(userId),
         userId: String(userId),
         savedAt: new Date().toISOString(),
@@ -60,56 +145,32 @@
 
       tx.onerror = function () {
         db.close();
-        reject(tx.error || new Error("Не удалось сохранить данные"));
+        reject(tx.error || new Error("Не удалось сохранить снимок"));
       };
 
       tx.onabort = function () {
         db.close();
-        reject(tx.error || new Error("Сохранение отменено"));
+        reject(tx.error || new Error("Сохранение снимка отменено"));
       };
     });
   }
 
-  async function getSnapshot(userId) {
-    const db = await openDB();
+  function getSnapshot(userId) {
+    if (userId === undefined || userId === null) {
+      return Promise.reject(new Error("Не указан пользователь"));
+    }
 
-    return new Promise(function (resolve, reject) {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const request = tx.objectStore(STORE_NAME).get("user:" + String(userId));
-
-      request.onsuccess = function () {
-        db.close();
-        resolve(request.result || null);
-      };
-
-      request.onerror = function () {
-        db.close();
-        reject(request.error || new Error("Не удалось прочитать данные"));
-      };
-    });
+    return readOne(SNAPSHOTS, "user:" + String(userId));
   }
 
   async function clearSnapshot(userId) {
-    const db = await openDB();
+    if (userId === undefined || userId === null) {
+      throw new Error("Не указан пользователь");
+    }
 
-    return new Promise(function (resolve, reject) {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      tx.objectStore(STORE_NAME).delete("user:" + String(userId));
-
-      tx.oncomplete = function () {
-        db.close();
-        resolve(true);
-      };
-
-      tx.onerror = function () {
-        db.close();
-        reject(tx.error || new Error("Не удалось удалить снимок"));
-      };
-
-      tx.onabort = function () {
-        db.close();
-        reject(tx.error || new Error("Удаление отменено"));
-      };
+    return runTransaction(SNAPSHOTS, "readwrite", function (store) {
+      store.delete("user:" + String(userId));
+      return true;
     });
   }
 
@@ -117,35 +178,41 @@
     if (userId === undefined || userId === null) {
       throw new Error("Не указан пользователь");
     }
-    if (!change || typeof change !== "object") {
-      throw new Error("Некорректное изменение");
+
+    if (!change || typeof change !== "object" || Array.isArray(change)) {
+      throw new Error("Некорректная операция");
     }
 
     const db = await openDB();
+
     return new Promise(function (resolve, reject) {
-      const tx = db.transaction(QUEUE_STORE, "readwrite");
-      const request = tx.objectStore(QUEUE_STORE).add({
+      const tx = db.transaction(QUEUE, "readwrite");
+      const request = tx.objectStore(QUEUE).add({
         userId: String(userId),
         change: change,
         createdAt: new Date().toISOString(),
         status: "pending"
       });
-      let changeId;
+
+      let id = null;
 
       request.onsuccess = function () {
-        changeId = request.result;
+        id = request.result;
       };
+
       tx.oncomplete = function () {
         db.close();
-        resolve(changeId);
+        resolve(id);
       };
+
       tx.onerror = function () {
         db.close();
-        reject(tx.error || new Error("Не удалось добавить изменение"));
+        reject(tx.error || new Error("Не удалось сохранить операцию"));
       };
+
       tx.onabort = function () {
         db.close();
-        reject(tx.error || new Error("Добавление отменено"));
+        reject(tx.error || new Error("Добавление операции отменено"));
       };
     });
   }
@@ -156,29 +223,70 @@
     }
 
     const db = await openDB();
+
     return new Promise(function (resolve, reject) {
-      const tx = db.transaction(QUEUE_STORE, "readonly");
-      const index = tx.objectStore(QUEUE_STORE).index("userId");
-      const request = index.getAll(String(userId));
+      const tx = db.transaction(QUEUE, "readonly");
+      const request = tx.objectStore(QUEUE)
+        .index("userId")
+        .getAll(String(userId));
+
       let changes = [];
 
       request.onsuccess = function () {
-        changes = (request.result || []).filter(function (item) {
-          return item.status === "pending";
-        });
+        changes = (request.result || [])
+          .filter(function (item) {
+            return item.status === "pending";
+          })
+          .sort(function (a, b) {
+            return a.id - b.id;
+          });
       };
-      request.onerror = function () {
-        db.close();
-        reject(request.error || new Error("Не удалось прочитать очередь"));
-      };
+
       tx.oncomplete = function () {
         db.close();
         resolve(changes);
       };
+
       tx.onerror = function () {
         db.close();
-        reject(tx.error || new Error("Ошибка чтения очереди"));
+        reject(tx.error || new Error("Не удалось прочитать очередь"));
       };
+
+      tx.onabort = function () {
+        db.close();
+        reject(tx.error || new Error("Чтение очереди отменено"));
+      };
+    });
+  }
+
+  async function getAllPendingChanges() {
+    const db = await openDB();
+
+    return new Promise(function (resolve, reject) {
+      const tx = db.transaction(QUEUE, "readonly");
+      const request = tx.objectStore(QUEUE).getAll();
+      let changes = [];
+
+      request.onsuccess = function () {
+        changes = (request.result || [])
+          .filter(function (item) {
+            return item.status === "pending";
+          })
+          .sort(function (a, b) {
+            return a.id - b.id;
+          });
+      };
+
+      tx.oncomplete = function () {
+        db.close();
+        resolve(changes);
+      };
+
+      tx.onerror = function () {
+        db.close();
+        reject(tx.error || new Error("Не удалось прочитать очередь"));
+      };
+
       tx.onabort = function () {
         db.close();
         reject(tx.error || new Error("Чтение очереди отменено"));
@@ -187,22 +295,13 @@
   }
 
   async function removePendingChange(id) {
-    const db = await openDB();
-    return new Promise(function (resolve, reject) {
-      const tx = db.transaction(QUEUE_STORE, "readwrite");
-      tx.objectStore(QUEUE_STORE).delete(id);
-      tx.oncomplete = function () {
-        db.close();
-        resolve(true);
-      };
-      tx.onerror = function () {
-        db.close();
-        reject(tx.error || new Error("Не удалось удалить изменение"));
-      };
-      tx.onabort = function () {
-        db.close();
-        reject(tx.error || new Error("Удаление отменено"));
-      };
+    if (id === undefined || id === null) {
+      throw new Error("Не указан идентификатор операции");
+    }
+
+    return runTransaction(QUEUE, "readwrite", function (store) {
+      store.delete(id);
+      return true;
     });
   }
 
@@ -212,6 +311,7 @@
     clearSnapshot: clearSnapshot,
     enqueueChange: enqueueChange,
     getPendingChanges: getPendingChanges,
+    getAllPendingChanges: getAllPendingChanges,
     removePendingChange: removePendingChange
   };
 })();

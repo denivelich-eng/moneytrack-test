@@ -7,55 +7,162 @@
   <title>MoneyTrack — офлайн</title>
   <style>
     * { box-sizing: border-box; }
+
+    :root {
+      color-scheme: dark;
+      --bg: #0b1120;
+      --surface: #151f32;
+      --surface-light: #1c2940;
+      --border: #2a3850;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --green: #34d399;
+      --red: #fb7185;
+      --blue: #818cf8;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
-      padding: 24px;
-      display: grid;
-      place-items: center;
-      background: #0f172a;
-      color: #f8fafc;
-      font-family: system-ui, sans-serif;
+      padding-bottom: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
     }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    header::first-letter { color: var(--green); }
+
+    header span {
+      float: right;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
     main {
       width: 100%;
-      max-width: 440px;
-      padding: 28px;
-      border: 1px solid #334155;
-      border-radius: 20px;
-      background: #1e293b;
+      max-width: 760px;
+      margin: auto;
+      padding: 12px 11px 28px;
     }
-    h1 { margin-top: 0; font-size: 27px; }
-    p { color: #cbd5e1; line-height: 1.6; }
+
+    section, .status {
+      overflow-wrap: anywhere;
+    }
+
+    section {
+      margin: 16px 0;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: 0 8px 24px #00000018;
+    }
+
+    h2, h3 {
+      color: var(--text);
+      line-height: 1.35;
+      letter-spacing: -0.3px;
+    }
+
+    h2 { margin-top: 0; font-size: 18px; }
+    h3 { font-size: 15px; }
+
+    p { color: var(--muted); }
+
     .status {
-      margin: 20px 0;
-      padding: 14px;
-      border-radius: 12px;
-      background: #334155;
+      margin: 10px 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-light);
+      color: var(--text);
     }
-    label { display: block; margin: 14px 0 6px; color: #cbd5e1; }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
     input, select {
-      width: 100%; padding: 12px; border: 1px solid #475569;
-      border-radius: 10px; background: #0f172a; color: #f8fafc;
+      display: block;
+      width: 100%;
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      outline: none;
+      background: #0b1120;
+      color: var(--text);
       font: inherit;
     }
-    #offlineTransactionForm button { margin-top: 16px; }
+
+    input:focus, select:focus {
+      border-color: var(--green);
+    }
+
     button {
       width: 100%;
-      padding: 14px;
+      min-height: 42px;
+      margin-top: 12px;
+      padding: 10px 14px;
       border: 0;
-      border-radius: 12px;
-      background: #38bdf8;
-      color: #082f49;
-      font-size: 16px;
-      font-weight: 700;
+      border-radius: 9px;
+      background: var(--green);
+      color: #052e2b;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    button:active { opacity: .85; }
+
+    #offlineFormStatus {
+      overflow-wrap: anywhere;
+    }
+
+    #offlineTransactions .status strong {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    #details {
+      padding: 0 4px;
+      font-size: 12px;
+    }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 420px) {
+      header { padding: 11px 12px; }
+      main { padding: 10px 9px 24px; }
+      section { padding: 12px; }
+      header span { font-size: 10px; }
     }
   </style>
 </head>
 <body>
+  <header>MoneyTrack <span>Офлайн-режим</span></header>
   <main>
-    <h1>MoneyTrack</h1>
-    <p>Личные финансы — офлайн-режим</p>
     <div class="status" id="status">Проверяем подключение…</div>
     <div class="status" id="copyStatus">Проверяем локальную копию…</div>
 
@@ -93,14 +200,25 @@
       <div class="status" id="offlineAccounts"></div>
       <h3>Последние операции</h3>
       <div id="offlineTransactions"></div>
+      <h3>Бюджеты</h3>
+      <div id="offlineBudgets"></div>
+      <h3>Долги</h3>
+      <div id="offlineDebts"></div>
+      <h3>Инвестиции</h3>
+      <div id="offlineInvestments"></div>
+      <h3>Регулярные платежи</h3>
+      <div id="offlineRecurring"></div>
+      <h3>Финансовые цели</h3>
+      <div id="offlineGoals"></div>
     </section>
     <p id="details">
-      Эта страница доступна без интернета. Сохранённые финансовые данные
-      подключим на следующем этапе.
+      Эта страница доступна без интернета. Финансовые данные доступны
+      для просмотра, если ранее были сохранены на этом устройстве.
     </p>
     <button type="button" onclick="location.reload()">Повторить проверку</button>
   </main>
   <script src="/static/offline-db.js"></script>
+  <script src="/static/offline-sync.js"></script>
   <script>
     const status = document.getElementById("status");
     const copyStatus = document.getElementById("copyStatus");
@@ -114,7 +232,7 @@
       } else {
         status.textContent = "Сейчас нет подключения к интернету";
         details.textContent =
-          "Офлайн-оболочка открыта. Подключение сохранённых финансовых данных будет добавлено отдельно.";
+          "Открыта офлайн-страница. Доступность финансовых данных зависит от наличия сохранённой копии.";
       }
     }
 
@@ -164,8 +282,74 @@
 
         card.appendChild(heading);
         card.appendChild(info);
+
+        if (item.offline_pending && item.client_change_id) {
+          const cancelButton = document.createElement("button");
+          cancelButton.type = "button";
+          cancelButton.textContent = "Отменить несинхронизированную операцию";
+          cancelButton.style.background = "#fb7185";
+          cancelButton.style.color = "#450a0a";
+          cancelButton.addEventListener("click", function () {
+            cancelPendingTransaction(item.client_change_id);
+          });
+          card.appendChild(cancelButton);
+        }
+
         container.appendChild(card);
       });
+    }
+
+    async function cancelPendingTransaction(clientId) {
+      if (navigator.onLine) {
+        alert("Для безопасной отмены сначала отключи интернет.");
+        return;
+      }
+
+      const userId = localStorage.getItem("moneytrack-offline-user-id");
+      const db = window.MoneyTrackOfflineDB;
+
+      if (!userId || !db || !clientId) {
+        alert("Не удалось определить операцию.");
+        return;
+      }
+
+      if (!confirm("Отменить эту операцию? Она будет удалена с устройства и не попадёт на сервер.")) {
+        return;
+      }
+
+      try {
+        const pending = await db.getPendingChanges(userId);
+        const row = pending.find(function (entry) {
+          return entry.change &&
+            entry.change.client_change_id === clientId;
+        });
+
+        if (!row) {
+          alert("Операция уже отсутствует в очереди. Обнови данные при подключении к интернету.");
+          return;
+        }
+
+        const snapshot = await db.getSnapshot(userId);
+        if (!snapshot || !snapshot.data) {
+          alert("Локальная копия не найдена. Очередь сохранена без изменений.");
+          return;
+        }
+
+        await db.removePendingChange(row.id);
+
+        snapshot.data.transactions = (
+          Array.isArray(snapshot.data.transactions)
+            ? snapshot.data.transactions
+            : []
+        ).filter(function (item) {
+          return item.client_change_id !== clientId;
+        });
+
+        await db.saveSnapshot(userId, snapshot.data);
+        await updateSavedCopy();
+      } catch (error) {
+        alert("Не удалось отменить операцию: " + (error.message || "ошибка хранилища"));
+      }
     }
 
 
@@ -265,6 +449,32 @@
           return;
         }
 
+        if (kind !== "income" && kind !== "expense") {
+          message.textContent = "Выбери корректный тип операции.";
+          return;
+        }
+
+        // Учитываем операции, сохранённые офлайн и ещё не подтверждённые сервером.
+        const pendingForAccount = (snapshot.data.transactions || []).filter(
+          item => item.offline_pending &&
+            String(item.account_id) === String(accountId)
+        );
+
+        const pendingChange = pendingForAccount.reduce((sum, item) => {
+          const value = Number(item.amount) || 0;
+          return sum + (item.kind === "income" ? value :
+            item.kind === "expense" ? -value : 0);
+        }, 0);
+
+        const effectiveBalance = (Number(selectedAccount.balance) || 0)
+          + pendingChange;
+
+        if (kind === "expense" && amount > effectiveBalance) {
+          message.textContent = "Недостаточно средств. Доступно с учётом несинхронизированных операций: " +
+            formatMoney(Math.max(0, effectiveBalance)) + ".";
+          return;
+        }
+
         const now = new Date();
         const pad = n => String(n).padStart(2, "0");
         const created = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -331,19 +541,90 @@
       placeholder.textContent = "Выбери счёт";
       select.appendChild(placeholder);
 
+      const transactions = Array.isArray(snapshot.data.transactions)
+        ? snapshot.data.transactions : [];
+
       accounts.forEach(account => {
+        const pendingChange = transactions
+          .filter(item => item.offline_pending &&
+            String(item.account_id) === String(account.id))
+          .reduce((sum, item) => {
+            const amount = Number(item.amount) || 0;
+            return sum + (item.kind === "income" ? amount :
+              item.kind === "expense" ? -amount : 0);
+          }, 0);
+
+        const effectiveBalance = (Number(account.balance) || 0) + pendingChange;
         const option = document.createElement("option");
         option.value = String(account.id);
         option.textContent = (account.name || account.title || ("Счёт #" + account.id))
-          + " · " + (Number(account.balance) || 0).toLocaleString("ru-RU") + " ₽";
+          + " · " + effectiveBalance.toLocaleString("ru-RU", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }) + " ₽";
         select.appendChild(option);
       });
     }
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      await populateOfflineAccounts();
-      await populateOfflineCategories();
-    });
+
+
+    async function verifyOfflineAccountAccess() {
+      const savedUserId = localStorage.getItem("moneytrack-offline-user-id");
+      const summary = document.getElementById("financialSummary");
+      const entry = document.getElementById("offlineEntry");
+
+      function deny(message) {
+        summary.hidden = true;
+        entry.hidden = true;
+        copyStatus.textContent = message;
+        details.textContent = "Локальная копия и очередь операций сохранены.";
+        return false;
+      }
+
+      if (!savedUserId) {
+        return deny("Локальная копия аккаунта не найдена.");
+      }
+
+      if (!navigator.onLine) {
+        entry.hidden = false;
+        return true;
+      }
+
+      try {
+        const response = await fetch("/api/offline/snapshot", {
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+
+        if (response.status === 401 || response.status === 403 ||
+            response.redirected || !response.ok) {
+          return deny("Войдите в аккаунт, которому принадлежит локальная копия.");
+        }
+
+        const result = await response.json();
+        if (!result || result.ok !== true || result.user_id == null) {
+          return deny("Не удалось подтвердить аккаунт. Данные сохранены.");
+        }
+
+        if (String(result.user_id) !== String(savedUserId)) {
+          return deny("Локальная копия принадлежит другому аккаунту. Данные сохранены.");
+        }
+
+        entry.hidden = false;
+        return true;
+      } catch (_) {
+        // При сбое запроса разрешаем локальный доступ только если
+        // браузер действительно сообщает об отсутствии сети.
+        if (!navigator.onLine) {
+          entry.hidden = false;
+          return true;
+        }
+
+        return deny(
+          "Не удалось проверить аккаунт из-за ошибки соединения. Данные сохранены."
+        );
+      }
+    }
 
     async function updateSavedCopy() {
       try {
@@ -374,6 +655,21 @@
           return sum + (Number(account.balance) || 0);
         }, 0);
 
+        // Учитываем в общем балансе только операции по счетам,
+        // которые ещё не подтверждены сервером.
+        const pendingAccountChange = transactions
+          .filter(function (item) {
+            return item.offline_pending &&
+              item.account_id !== null &&
+              item.account_id !== undefined;
+          })
+          .reduce(function (sum, item) {
+            const amount = Number(item.amount) || 0;
+            if (item.kind === "income") return sum + amount;
+            if (item.kind === "expense") return sum - amount;
+            return sum;
+          }, 0);
+
         const unassigned = transactions.filter(function (item) {
           return item.account_id === null || item.account_id === undefined;
         });
@@ -386,7 +682,7 @@
           return sum + (item.kind === "expense" ? Number(item.amount) || 0 : 0);
         }, 0);
 
-        const balance = accountTotal + unassignedIncome - unassignedExpense;
+        const balance = accountTotal + pendingAccountChange + unassignedIncome - unassignedExpense;
         const now = new Date();
         let monthIncome = 0;
         let monthExpense = 0;
@@ -411,6 +707,67 @@
           " · Операций в копии: " + transactions.length;
 
         renderTransactions(transactions);
+
+        function renderOfflineList(id, items, fields, emptyText) {
+          const container = document.getElementById(id);
+          container.replaceChildren();
+          if (!Array.isArray(items) || items.length === 0) {
+            container.textContent = emptyText;
+            return;
+          }
+          items.forEach(function (item) {
+            const card = document.createElement("div");
+            card.className = "status";
+            fields.forEach(function (field) {
+              const line = document.createElement("div");
+              const value = item[field.key];
+              line.textContent = field.label + ": " +
+                (field.money ? formatMoney(value) :
+                  (value === null || value === undefined || value === ""
+                    ? "—" : String(value)));
+              card.appendChild(line);
+            });
+            container.appendChild(card);
+          });
+        }
+
+        renderOfflineList("offlineBudgets", data.budgets, [
+          {key: "category", label: "Категория"},
+          {key: "amount", label: "Лимит", money: true}
+        ], "Нет сохранённых бюджетов");
+
+        renderOfflineList("offlineDebts", data.debts, [
+          {key: "direction", label: "Тип"},
+          {key: "person", label: "Человек"},
+          {key: "amount", label: "Сумма", money: true},
+          {key: "paid_amount", label: "Оплачено", money: true},
+          {key: "note", label: "Комментарий"}
+        ], "Нет сохранённых долгов");
+
+        renderOfflineList("offlineInvestments", data.investments, [
+          {key: "name", label: "Актив"},
+          {key: "asset_type", label: "Тип"},
+          {key: "amount", label: "Вложено", money: true},
+          {key: "current_value", label: "Текущая стоимость", money: true},
+          {key: "note", label: "Комментарий"}
+        ], "Нет сохранённых инвестиций");
+
+        renderOfflineList("offlineRecurring", data.recurring_payments, [
+          {key: "name", label: "Платёж"},
+          {key: "amount", label: "Сумма", money: true},
+          {key: "category", label: "Категория"},
+          {key: "frequency", label: "Периодичность"},
+          {key: "next_date", label: "Следующая дата"},
+          {key: "active", label: "Активен"}
+        ], "Нет сохранённых регулярных платежей");
+
+        renderOfflineList("offlineGoals", data.financial_goals, [
+          {key: "name", label: "Цель"},
+          {key: "target_amount", label: "Нужно", money: true},
+          {key: "saved_amount", label: "Накоплено", money: true},
+          {key: "target_date", label: "Срок"}
+        ], "Нет сохранённых финансовых целей");
+
         document.getElementById("financialSummary").hidden = false;
         details.textContent = "Показаны данные из локальной копии на устройстве. " +
           "Они могут быть неактуальными, если после сохранения были изменения.";
@@ -419,12 +776,37 @@
       }
     }
 
-window.addEventListener("online", updateConnection);
+async function guardedAddOfflineTransaction(event) {
+      if (!(await verifyOfflineAccountAccess())) {
+        event.preventDefault();
+        document.getElementById("offlineFormStatus").textContent =
+          "Не удалось подтвердить доступ к этому аккаунту.";
+        return;
+      }
+      await addOfflineTransaction(event);
+    }
+
+    async function initializeOfflinePage() {
+      if (!(await verifyOfflineAccountAccess())) return;
+      await populateOfflineAccounts();
+      await populateOfflineCategories();
+      await updateSavedCopy();
+    }
+
+    window.addEventListener("online", async () => {
+      updateConnection();
+      await initializeOfflinePage();
+    });
     window.addEventListener("offline", updateConnection);
-    document.getElementById("offlineTransactionForm").addEventListener("submit", addOfflineTransaction);
+    document.getElementById("offlineTransactionForm")
+      .addEventListener("submit", guardedAddOfflineTransaction);
+
     updateConnection();
-    populateOfflineAccounts().catch(console.error);
-    updateSavedCopy();
+    initializeOfflinePage().catch((error) => {
+      console.error(error);
+      document.getElementById("copyStatus").textContent =
+        "Не удалось загрузить локальную копию.";
+    });
   </script>
 </body>
 </html>

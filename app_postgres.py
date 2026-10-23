@@ -1127,6 +1127,7 @@ def page(title, content, **context):
     <link rel="manifest" href="/static/manifest.json">
     <script src="/static/offline-db.js" defer></script>
     <script src="/static/offline-sync.js" defer></script>
+    <script src="/static/offline-forms.js" defer></script>
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <title>{{title}}</title>
@@ -1273,6 +1274,206 @@ def offline_sync():
 
         client_id = str(item.get("client_change_id", "")).strip()
         transaction = item.get("transaction", {})
+
+        action = item.get("action")
+
+        # Редактирование и удаление операций, созданных ранее.
+        if action in ("edit_transaction", "delete_transaction"):
+            try:
+                transaction_id = int(
+                    item.get("transaction_id", transaction.get("id", 0))
+                )
+                if not client_id or len(client_id) > 100 or transaction_id <= 0:
+                    raise ValueError("Некорректный ID операции или ключ изменения")
+
+                with connect_db() as db:
+                    db.execute("""
+                        CREATE TABLE IF NOT EXISTS offline_sync_log (
+                            id BIGSERIAL PRIMARY KEY,
+                            user_id BIGINT NOT NULL,
+                            client_change_id TEXT NOT NULL,
+                            transaction_id BIGINT,
+                            processed_at TEXT NOT NULL,
+                            UNIQUE (user_id, client_change_id)
+                        )
+                    """)
+
+                    inserted = db.execute("""
+                        INSERT INTO offline_sync_log
+                            (user_id, client_change_id, transaction_id, processed_at)
+                        VALUES (?, ?, NULL, ?)
+                        ON CONFLICT (user_id, client_change_id) DO NOTHING
+                        RETURNING client_change_id
+                    """, (
+                        user_id,
+                        client_id,
+                        datetime.now().isoformat(timespec="seconds")
+                    )).fetchone()
+
+                    if inserted is None:
+                        previous = db.execute(
+                            "SELECT transaction_id FROM offline_sync_log "
+                            "WHERE user_id=? AND client_change_id=?",
+                            (user_id, client_id)
+                        ).fetchone()
+
+                        if previous is None or previous["transaction_id"] is None:
+                            raise RuntimeError(
+                                "Повторный ключ найден без ID сохранённой операции"
+                            )
+
+                        results.append({
+                            "ok": True,
+                            "duplicate": True,
+                            "client_change_id": client_id,
+                            "transaction_id": previous["transaction_id"]
+                        })
+                        continue
+
+                    old = db.execute("""
+                        SELECT id, kind, amount, account_id
+                        FROM transactions
+                        WHERE id=? AND user_id=?
+                    """, (transaction_id, user_id)).fetchone()
+
+                    if old is None:
+                        raise ValueError("Операция не найдена")
+
+                    old_kind = old["kind"]
+                    old_amount = float(old["amount"])
+                    old_account_raw = old["account_id"]
+                    old_account_id = (
+                        int(old_account_raw)
+                        if old_account_raw is not None else None
+                    )
+                    old_delta = old_amount if old_kind == "income" else -old_amount
+
+                    old_account = None
+                    if old_account_id is not None:
+                        old_account = db.execute(
+                            "SELECT id, balance FROM accounts WHERE id=? AND user_id=?",
+                            (old_account_id, user_id)
+                        ).fetchone()
+
+                        if old_account is None:
+                            raise ValueError("Счёт исходной операции не найден")
+
+                    if action == "delete_transaction":
+                        if old_account_id is not None:
+                            db.execute(
+                                "UPDATE accounts SET balance=balance-? "
+                                "WHERE id=? AND user_id=?",
+                                (old_delta, old_account_id, user_id)
+                            )
+                        db.execute(
+                            "DELETE FROM transactions WHERE id=? AND user_id=?",
+                            (transaction_id, user_id)
+                        )
+
+                    else:
+                        if not isinstance(transaction, dict):
+                            raise ValueError("Некорректные данные операции")
+
+                        kind = transaction.get("kind")
+                        category = str(transaction.get("category", "")).strip()
+                        note = str(transaction.get("note", "")).strip()
+                        created = str(transaction.get("created", "")).strip()
+
+                        try:
+                            amount = float(transaction.get("amount"))
+                            account_id = int(transaction.get("account_id"))
+                        except (TypeError, ValueError, OverflowError):
+                            raise ValueError("Укажи корректную сумму и счёт")
+
+                        if (
+                            kind not in ("income", "expense")
+                            or not math.isfinite(amount)
+                            or amount <= 0
+                            or not category
+                            or len(category) > 40
+                            or len(note) > 200
+                        ):
+                            raise ValueError("Некорректные данные операции")
+
+                        if not category_is_valid(user_id, kind, category):
+                            raise ValueError(
+                                "Категория не найдена для этого типа операции"
+                            )
+
+                        if not created or len(created) > 40:
+                            created = datetime.now().strftime("%d.%m.%Y %H:%M")
+
+                        new_account = db.execute(
+                            "SELECT id, balance FROM accounts WHERE id=? AND user_id=?",
+                            (account_id, user_id)
+                        ).fetchone()
+
+                        if new_account is None:
+                            raise ValueError("Счёт не найден в вашем аккаунте")
+
+                        if account_id == old_account_id and old_account is not None:
+                            available_balance = (
+                                float(old_account["balance"] or 0) - old_delta
+                            )
+                        else:
+                            available_balance = float(new_account["balance"] or 0)
+
+                        if kind == "expense" and amount > available_balance:
+                            raise ValueError(
+                                "Недостаточно средств на счёте для этой операции"
+                            )
+
+                        if old_account_id is not None:
+                            db.execute(
+                                "UPDATE accounts SET balance=balance-? "
+                                "WHERE id=? AND user_id=?",
+                                (old_delta, old_account_id, user_id)
+                            )
+
+                        new_delta = amount if kind == "income" else -amount
+                        db.execute(
+                            "UPDATE accounts SET balance=balance+? "
+                            "WHERE id=? AND user_id=?",
+                            (new_delta, account_id, user_id)
+                        )
+
+                        db.execute("""
+                            UPDATE transactions
+                            SET kind=?, amount=?, category=?, note=?, created=?, account_id=?
+                            WHERE id=? AND user_id=?
+                        """, (
+                            kind, amount, category, note, created, account_id,
+                            transaction_id, user_id
+                        ))
+
+                    db.execute("""
+                        UPDATE offline_sync_log
+                        SET transaction_id=?
+                        WHERE user_id=? AND client_change_id=?
+                    """, (transaction_id, user_id, client_id))
+
+                results.append({
+                    "ok": True,
+                    "duplicate": False,
+                    "client_change_id": client_id,
+                    "transaction_id": transaction_id
+                })
+
+            except ValueError as exc:
+                results.append({
+                    "ok": False,
+                    "client_change_id": client_id,
+                    "error": str(exc)
+                })
+            except Exception:
+                app.logger.exception("Offline edit/delete sync failed")
+                results.append({
+                    "ok": False,
+                    "client_change_id": client_id,
+                    "error": "Ошибка сервера. Изменение оставлено в очереди."
+                })
+
+            continue
 
         if (
             item.get("action") != "create_transaction"
