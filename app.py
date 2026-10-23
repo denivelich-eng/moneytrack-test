@@ -81,19 +81,22 @@ def has_access(user):
 STYLE = """
 <style>
 * {box-sizing:border-box}
-body { margin:0; background:#f2f5f3; color:#17251d; font-family:Arial,sans-serif; }
-header { background:#153b2a; color:white; padding:20px; font-size:23px; font-weight:bold; }
+body { margin:0; background:#121212; color:#e0e0e0; font-family:Arial,sans-serif; }
+header { background:#1a1a1a; color:#d4af37; padding:20px; font-size:23px; font-weight:bold; border-bottom: 2px solid #d4af37; }
 main {max-width:650px; margin:auto; padding:16px}
-.card { background:white; border-radius:16px; padding:18px; margin:14px 0; box-shadow:0 3px 15px #00000008; }
-input,select,button { width:100%; padding:13px; margin:7px 0; border:1px solid #d5ded7; border-radius:10px; font-size:16px; }
-button { background:#176c43; color:white; border:0; font-weight:bold; }
-a {color:#176c43}
-.small {color:#64736a; font-size:13px}
-.amount {font-size:30px; font-weight:bold}
-.expense {color:#bd4545}
-.income {color:#17834d}
+.card { background:#1e1e1e; border-radius:16px; padding:18px; margin:14px 0; box-shadow:0 4px 15px rgba(0,0,0,0.5); border: 1px solid #333; }
+input,select,button { width:100%; padding:13px; margin:7px 0; border:1px solid #444; border-radius:10px; font-size:16px; background:#2a2a2a; color:#fff; }
+input:focus, select:focus { outline: none; border-color: #d4af37; }
+button { background:#d4af37; color:#121212; border:0; font-weight:bold; cursor: pointer; transition: background 0.3s; }
+button:hover { background:#e6c55c; }
+a {color:#d4af37; text-decoration: none;}
+a:hover {text-decoration: underline;}
+.small {color:#888; font-size:13px}
+.amount {font-size:30px; font-weight:bold; color:#d4af37;}
+.expense {color:#ff6b6b}
+.income {color:#d4af37}
 </style>
-"""
+""" 
 
 def page(title, content, **context):
     template = """
