@@ -96,7 +96,7 @@ a:hover {text-decoration: underline;}
 .expense {color:#ff6b6b}
 .income {color:#d4af37}
 </style>
-""" 
+"""
 
 def page(title, content, **context):
     template = """
@@ -105,6 +105,7 @@ def page(title, content, **context):
     <head>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta charset="utf-8">
+    <meta name="theme-color" content="#121212">
     <link rel="manifest" href="/static/manifest.json">
     <title>{{title}}</title>
     """ + STYLE + """
@@ -143,26 +144,26 @@ def index():
         <div class="amount">{{balance|round(2)}} ₽</div>
         <p class="income">Доходы: +{{income|round(2)}} ₽</p>
         <p class="expense">Расходы: −{{expense|round(2)}} ₽</p>
-        <a href="/add">+ Добавить операцию</a>
+        <a href="/add" style="display:block; text-align:center; background:#d4af37; color:#121212; padding:12px; border-radius:10px; font-weight:bold; margin-top:15px;">+ Добавить операцию</a>
     </div>
     <div class="card">
-        <h3>Мои счета</h3>
-        {% for a in accounts %} <p>{{a.name}} — {{a.balance|round(2)}} ₽</p> {% else %} <p class="small">Счетов пока нет.</p> {% endfor %}
+        <h3 style="color:#d4af37;">Мои счета</h3>
+        {% for a in accounts %} <p>{{a.name}} — <span style="color:#d4af37; font-weight:bold;">{{a.balance|round(2)}} ₽</span></p> {% else %} <p class="small">Счетов пока нет.</p> {% endfor %}
         <a href="/accounts">Добавить счет</a>
     </div>
     <div class="card">
-        <h3>Последние операции</h3>
+        <h3 style="color:#d4af37;">Последние операции</h3>
         {% for t in rows %}
-            <p>{% if t.kind == 'income' %}<span class="income">+{{t.amount}} ₽</span>{% else %}<span class="expense">−{{t.amount}} ₽</span>{% endif %} — {{t.category}} {{t.note}} <span class="small">{{t.created}}</span></p>
+            <p>{% if t.kind == 'income' %}<span class="income" style="font-weight:bold;">+{{t.amount}} ₽</span>{% else %}<span class="expense">−{{t.amount}} ₽</span>{% endif %} — {{t.category}} {{t.note}} <span class="small">{{t.created}}</span></p>
         {% else %} <p class="small">Операций пока нет.</p> {% endfor %}
     </div>
     <div class="card">
-        <h3>Подписка</h3>
-        <p>Текущий тариф: {{user.plan}}</p>
+        <h3 style="color:#d4af37;">Подписка</h3>
+        <p>Текущий тариф: <span style="color:#d4af37;">{{user.plan}}</span></p>
         <p>Доступ: {{user.expires or 'не ограничен / бесплатный'}}</p>
         <a href="/plans">Посмотреть тарифы</a>
     </div>
-    <p><a href="/logout">Выйти</a></p>
+    <p><a href="/logout" style="color:#ff6b6b;">Выйти</a></p>
     """
     return page("Главная", content, user=user, rows=rows, accounts=accounts, balance=balance, income=income, expense=expense)
 
@@ -170,7 +171,7 @@ def index():
 def register():
     content = """
     <div class="card">
-    <h2>Регистрация</h2>
+    <h2 style="color:#d4af37;">Регистрация</h2>
     <form method="post">
         <input name="phone" placeholder="+79991234567" required>
         <input name="password" type="password" placeholder="Пароль от приложения" required>
@@ -198,7 +199,7 @@ def register():
 def login():
     content = """
     <div class="card">
-    <h2>Вход</h2>
+    <h2 style="color:#d4af37;">Вход</h2>
     <form method="post">
         <input name="phone" placeholder="Номер телефона" required>
         <input name="password" type="password" placeholder="Пароль" required>
@@ -226,7 +227,7 @@ def add_transaction():
     if not has_access(user): return redirect(url_for("plans"))
     content = """
     <div class="card">
-    <h2>Новая операция</h2>
+    <h2 style="color:#d4af37;">Новая операция</h2>
     <form method="post">
         <select name="kind">
             <option value="expense">Расход</option>
@@ -273,7 +274,7 @@ def accounts():
             flash("Неверная сумма.")
     content = """
     <div class="card">
-    <h2>Добавить счет</h2>
+    <h2 style="color:#d4af37;">Добавить счет</h2>
     <form method="post">
         <input name="name" placeholder="Например, наличные" required>
         <input name="balance" type="number" step="0.01" placeholder="Начальный баланс" value="0">
@@ -289,11 +290,11 @@ def accounts():
 def plans():
     content = """
     <div class="card">
-    <h2>Тарифы</h2>
+    <h2 style="color:#d4af37;">Тарифы</h2>
     <p class="small">Демонстрационный режим: оплата не производится.</p>
     {% for key, plan in plans.items() %}
         <div class="card">
-            <h3>{{plan[0]}}</h3>
+            <h3 style="color:#e0e0e0;">{{plan[0]}}</h3>
             <div class="amount">{{plan[1]}} ₽</div>
             <form method="post" action="/demo-activate">
                 <input type="hidden" name="plan" value="{{key}}">
