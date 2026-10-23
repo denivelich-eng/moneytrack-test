@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <title>MoneyTrack — офлайн</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: system-ui, sans-serif;
+    }
+    main {
+      width: 100%;
+      max-width: 440px;
+      padding: 28px;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      background: #1e293b;
+    }
+    h1 { margin-top: 0; font-size: 27px; }
+    p { color: #cbd5e1; line-height: 1.6; }
+    .status {
+      margin: 20px 0;
+      padding: 14px;
+      border-radius: 12px;
+      background: #334155;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 12px;
+      background: #38bdf8;
+      color: #082f49;
+      font-size: 16px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>MoneyTrack</h1>
+    <p>Личные финансы — офлайн-режим</p>
+    <div class="status" id="status">Проверяем подключение…</div>
+    <div class="status" id="copyStatus">Проверяем локальную копию…</div>
+    <p id="details">
+      Эта страница доступна без интернета. Сохранённые финансовые данные
+      подключим на следующем этапе.
+    </p>
+    <button type="button" onclick="location.reload()">Повторить проверку</button>
+  </main>
+  <script src="/static/offline-db.js"></script>
+  <script>
+    const status = document.getElementById("status");
+    const copyStatus = document.getElementById("copyStatus");
+    const details = document.getElementById("details");
+
+    function updateConnection() {
+      if (navigator.onLine) {
+        status.textContent = "Подключение к интернету есть";
+        details.textContent =
+          "Можно вернуться на MoneyTrack и синхронизировать данные.";
+      } else {
+        status.textContent = "Сейчас нет подключения к интернету";
+        details.textContent =
+          "Офлайн-оболочка открыта. Подключение сохранённых финансовых данных будет добавлено отдельно.";
+      }
+    }
+
+    async function updateSavedCopy() {
+      try {
+        const userId = localStorage.getItem("moneytrack-offline-user-id");
+
+        if (!userId || !window.MoneyTrackOfflineDB) {
+          copyStatus.textContent = "Локальная копия аккаунта не найдена";
+          return;
+        }
+
+        const snapshot = await window.MoneyTrackOfflineDB.getSnapshot(userId);
+
+        if (!snapshot) {
+          copyStatus.textContent = "Для выбранного аккаунта нет сохранённой копии";
+          return;
+        }
+
+        const date = new Date(snapshot.savedAt);
+        const dateText = Number.isNaN(date.getTime())
+          ? "дата неизвестна"
+          : date.toLocaleString("ru-RU");
+
+        const count = Object.keys(snapshot.data || {}).length;
+        copyStatus.textContent =
+          "Локальная копия найдена · сохранена: " + dateText +
+          " · разделов: " + count;
+      } catch (_) {
+        copyStatus.textContent = "Не удалось проверить локальную копию";
+      }
+    }
+
+    window.addEventListener("online", updateConnection);
+    window.addEventListener("offline", updateConnection);
+    updateConnection();
+    updateSavedCopy();
+  </script>
+</body>
+</html>

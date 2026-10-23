@@ -1,0 +1,173 @@
+(function () {
+  "use strict";
+
+  const DB_KEY = "moneytrack-offline-user-id";
+
+  function getUserId() {
+    return localStorage.getItem(DB_KEY) ||
+      localStorage.getItem("moneytrack-offline-user-id");
+  }
+
+  function getDB() {
+    return window.MoneyTrackOfflineDB;
+  }
+
+  function notifyQueueUpdated() {
+    window.dispatchEvent(new CustomEvent("moneytrack-queue-updated"));
+  }
+
+  function showMessage(message) {
+    let box = document.getElementById("offline-operation-message");
+
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "offline-operation-message";
+      box.style.cssText =
+        "position:fixed;left:12px;right:12px;bottom:18px;z-index:99999;" +
+        "padding:14px 16px;border-radius:12px;background:#18212f;" +
+        "color:#fff;font-size:14px;box-shadow:0 6px 24px #0003";
+      document.body.appendChild(box);
+    }
+
+    box.textContent = message;
+    box.hidden = false;
+  }
+
+  function findTransactionForm(target) {
+    const form = target.closest("form");
+    if (!form) return null;
+
+    const action = form.getAttribute("action") || location.pathname;
+
+    if (action === "/add" || action.endsWith("/add")) {
+      return form;
+    }
+
+    return null;
+  }
+
+  function readFormValue(form, names) {
+    for (const name of names) {
+      const field = form.elements.namedItem(name);
+      if (field && field.value !== undefined && field.value !== "") {
+        return field.value.trim();
+      }
+    }
+    return "";
+  }
+
+  function findSubmitButton(form) {
+    return form.querySelector(
+      'button[type="submit"], input[type="submit"], button:not([type])'
+    );
+  }
+
+  function getTransactionFromForm(form) {
+    const amountRaw = readFormValue(form, ["amount", "sum", "value"]);
+    const amount = Number(amountRaw.replace(",", "."));
+
+    const category = readFormValue(form, ["category", "category_name"]);
+    const note = readFormValue(form, ["note", "description", "comment"]);
+    const transactionType = readFormValue(form, ["type", "transaction_type"]);
+    const date = readFormValue(form, ["date", "transaction_date"]);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showMessage("Укажи корректную сумму операции.");
+      return null;
+    }
+
+    if (!category) {
+      showMessage("Выбери категорию операции.");
+      return null;
+    }
+
+    const payload = {
+      amount: amount,
+      category: category,
+      note: note,
+      type: transactionType || "expense"
+    };
+
+    if (date) payload.date = date;
+
+    const accountId = readFormValue(form, ["account_id", "account"]);
+    if (accountId) payload.account_id = accountId;
+
+    const csrf = form.querySelector('input[name="csrf_token"]');
+    if (csrf && csrf.value) payload.csrf_token = csrf.value;
+
+    return payload;
+  }
+
+  async function queueTransaction(form) {
+    const db = getDB();
+    const userId = getUserId();
+
+    if (!db || typeof db.enqueueChange !== "function") {
+      showMessage("Локальное хранилище ещё не готово. Открой MoneyTrack с интернетом.");
+      return;
+    }
+
+    if (!userId) {
+      showMessage("Чтобы работать офлайн, сначала войди в MoneyTrack с интернетом.");
+      return;
+    }
+
+    const transaction = getTransactionFromForm(form);
+    if (!transaction) return;
+
+    const change = {
+      action: "create_transaction",
+      payload: transaction,
+      client_change_id: "offline-" + Date.now() + "-" +
+        Math.random().toString(36).slice(2, 10)
+    };
+
+    try {
+      await db.enqueueChange(userId, change);
+
+      form.reset();
+      showMessage("Операция сохранена на устройстве. Синхронизируем, когда появится интернет.");
+      notifyQueueUpdated();
+
+      if (typeof window.MoneyTrackOfflineRender === "function") {
+        window.MoneyTrackOfflineRender();
+      }
+    } catch (error) {
+      console.error("MoneyTrack: не удалось сохранить офлайн-операцию", error);
+      showMessage("Не удалось сохранить операцию. Проверь свободное место на устройстве.");
+    }
+  }
+
+  document.addEventListener("submit", function (event) {
+    if (navigator.onLine) return;
+
+    const form = findTransactionForm(event.target);
+    if (!form) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    queueTransaction(form);
+  }, true);
+
+  document.addEventListener("click", function (event) {
+    if (navigator.onLine) return;
+
+    const button = event.target.closest(
+      'button[type="submit"], input[type="submit"], button:not([type])'
+    );
+
+    if (!button) return;
+
+    const form = button.form || button.closest("form");
+    if (!form || !findTransactionForm(button)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    queueTransaction(form);
+  }, true);
+
+  window.addEventListener("online", function () {
+    showMessage("Интернет восстановлен. MoneyTrack подготовит сохранённые операции к синхронизации.");
+  });
+})();

@@ -1,0 +1,156 @@
+===== PYTHON SYNTAX =====
+[Errno 2] No such file or directory: '.py'===== JAVASCRIPT SYNTAX =====
+The program node is not installed. Install it by executing:
+ pkg install nodejs
+or
+ pkg install nodejs-lts
+===== OFFLINE FILES =====
+-rw-------. 1 u0_a411 u0_a411  721 Oct 22 21:37 static/icon-192.png
+-rw-------. 1 u0_a411 u0_a411 2.9K Oct 22 21:37 static/icon-512.png
+-rw-------. 1 u0_a411 u0_a411  651 Oct 22 21:36 static/manifest.json
+-rw-------. 1 u0_a411 u0_a411 7.3K Oct 23 03:38 static/offline-db.js
+-rw-------. 1 u0_a411 u0_a411 9.0K Oct 23 03:55 static/offline-sync.js
+-rw-------. 1 u0_a411 u0_a411  30K Oct 23 04:17 static/offline.html
+-rw-------. 1 u0_a411 u0_a411 2.2K Oct 23 02:50 static/sw.js
+===== ROUTES AND OFFLINE REFERENCES =====
+grep: Unmatched ( or \(
+===== SYNC IMPLEMENTATION =====
+app_postgres.py:1278:            item.get("action") != "create_transaction"
+app_postgres.py:2366:def delete_transaction(transaction_id):
+app_postgres.py:2404:def edit_transaction(transaction_id):
+static/offline-db.js:43:  async function saveSnapshot(userId, data) {
+static/offline-db.js:73:  async function getSnapshot(userId) {
+static/offline-db.js:116:  async function enqueueChange(userId, change) {
+static/offline-db.js:153:  async function getPendingChanges(userId) {
+static/offline-db.js:221:  async function removePendingChange(id) {
+static/offline-db.js:242:    saveSnapshot: saveSnapshot,
+static/offline-db.js:243:    getSnapshot: getSnapshot,
+static/offline-db.js:245:    enqueueChange: enqueueChange,
+static/offline-db.js:246:    getPendingChanges: getPendingChanges,
+static/offline-db.js:248:    removePendingChange: removePendingChange
+static/offline-sync.js:17:    if (!navigator.onLine || !window.MoneyTrackOfflineDB) {
+static/offline-sync.js:74:      const pending = await db.getPendingChanges(userId);
+static/offline-sync.js:80:      await db.saveSnapshot(userId, result.data);
+static/offline-sync.js:89:  async function syncPendingChanges() {
+static/offline-sync.js:90:    if (syncRunning || !navigator.onLine || !window.MoneyTrackOfflineDB) {
+static/offline-sync.js:147:      const pending = await db.getPendingChanges(userId);
+static/offline-sync.js:159:        if (!navigator.onLine) {
+static/offline-sync.js:209:          await db.removePendingChange(row.id);
+static/offline-sync.js:227:      const remaining = await db.getPendingChanges(userId);
+static/offline-sync.js:260:        const snapshot = await window.MoneyTrackOfflineDB.getSnapshot(userId);
+static/offline-sync.js:272:    syncNow: syncPendingChanges
+static/offline-sync.js:276:    syncPendingChanges();
+static/offline-sync.js:287:      syncPendingChanges();
+static/offline.html:228:      if (navigator.onLine) {
+static/offline.html:272:        if (item.offline_pending) heading.textContent += " · ожидает синхронизации";
+static/offline.html:286:        if (item.offline_pending && item.client_change_id) {
+static/offline.html:303:      if (navigator.onLine) {
+static/offline.html:321:        const pending = await db.getPendingChanges(userId);
+static/offline.html:332:        const snapshot = await db.getSnapshot(userId);
+static/offline.html:338:        await db.removePendingChange(row.id);
+static/offline.html:348:        await db.saveSnapshot(userId, snapshot.data);
+static/offline.html:379:          const snapshot = await db.getSnapshot(userId);
+static/offline.html:435:        const snapshot = await db.getSnapshot(userId);
+static/offline.html:459:          item => item.offline_pending &&
+static/offline.html:490:          offline_pending: true
+static/offline.html:493:        await db.enqueueChange(userId, {
+static/offline.html:494:          action: "create_transaction",
+static/offline.html:503:        await db.saveSnapshot(userId, data);
+static/offline.html:529:      const snapshot = await window.MoneyTrackOfflineDB.getSnapshot(userId);
+static/offline.html:549:          .filter(item => item.offline_pending &&
+static/offline.html:588:      if (!navigator.onLine) {
+static/offline.html:618:        if (!navigator.onLine) {
+static/offline.html:638:        const snapshot = await window.MoneyTrackOfflineDB.getSnapshot(userId);
+static/offline.html:662:            return item.offline_pending &&
+===== GIT STATUS =====
+ M static/offline-db.js
+ M static/offline-sync.js
+ M static/offline.html
+ M static/sw.js
+?? .github/
+?? "= p.read_text(encoding=\"utf-8\")"
+?? adapt_postgres.py
+?? android-app/
+?? app_postgres.py.bak
+?? app_postgres.py.bak_account_form_20261022_034843
+?? app_postgres.py.bak_accounts_limit
+?? app_postgres.py.bak_action_colors
+?? app_postgres.py.bak_all_placeholders_20261022
+?? app_postgres.py.bak_before_account_sum
+?? app_postgres.py.bak_before_add_form
+?? app_postgres.py.bak_before_add_form_replace
+?? app_postgres.py.bak_before_add_form_replace2
+?? app_postgres.py.bak_before_all_transactions
+?? app_postgres.py.bak_before_budget_recurring_categories
+?? app_postgres.py.bak_before_category_helpers
+?? app_postgres.py.bak_before_category_limit
+?? app_postgres.py.bak_before_category_route
+?? app_postgres.py.bak_before_custom_investment_types
+?? app_postgres.py.bak_before_donut
+?? app_postgres.py.bak_before_duplicate_id_fix
+?? app_postgres.py.bak_before_edit_account_guard
+?? app_postgres.py.bak_before_edit_balance_check
+?? app_postgres.py.bak_before_edit_categories
+?? app_postgres.py.bak_before_final_fields
+?? app_postgres.py.bak_before_fix_payments
+?? app_postgres.py.bak_before_form_fix
+?? app_postgres.py.bak_before_funding_20261022_031557
+?? app_postgres.py.bak_before_indexeddb
+?? app_postgres.py.bak_before_inline_labels
+?? app_postgres.py.bak_before_investment_edit_fix
+?? app_postgres.py.bak_before_investment_finite
+?? app_postgres.py.bak_before_main_operations_ui
+?? app_postgres.py.bak_before_offline_20261022_222702
+?? app_postgres.py.bak_before_offline_sync
+?? app_postgres.py.bak_before_placeholder_restore
+?? app_postgres.py.bak_before_recurring_edit
+?? app_postgres.py.bak_before_remove_duplicate_balance_check
+?? app_postgres.py.bak_before_transaction_fix
+?? app_postgres.py.bak_before_transactions
+?? app_postgres.py.bak_before_ui_cleanup
+?? app_postgres.py.bak_before_ui_repair
+?? app_postgres.py.bak_before_user_categories
+?? app_postgres.py.bak_buttons_20261022_022723
+?? app_postgres.py.bak_categories_20261021_203309
+?? app_postgres.py.bak_create_account_20261022_034114
+?? app_postgres.py.bak_delete_colors_20261022_023120
+?? app_postgres.py.bak_goal_buttons
+?? app_postgres.py.bak_home_reminders_20261022_025905
+?? app_postgres.py.bak_register_size
+?? app_postgres.py.bak_ui_before
+?? app_postgres.py.bak_unified_buttons
+?? backup_offline/
+?? changes.diff
+?? check_login.py
+?? fix_adapter.py
+?? migrate_to_neon.py
+?? migrate_to_neon.py.broken_backup
+?? migrate_to_neon.py.old
+?? migrate_to_neon.py.pre_run_backup
+?? moneytrack_fields.txt
+?? moneytrack_forms.txt
+?? offline_diagnostic_report.txt
+?? static/offline-db.js.bak
+?? static/offline-db.js.bak_before_queue_fix
+?? static/offline-db.js.bak_queue
+?? static/offline-sync.js.bak
+?? static/offline-sync.js.bak_before_queue_guard
+?? static/offline-sync.js.bak_before_queue_sync
+?? static/offline-test.html
+?? static/offline.html.bak_20261023_030200
+?? static/offline.html.bak_before_account_select
+?? static/offline.html.bak_before_add_form
+?? static/offline.html.bak_before_cancel_pending
+?? static/offline.html.bak_before_category_cleanup
+?? static/offline.html.bak_before_category_select
+?? static/offline.html.bak_before_financial_view
+?? static/offline.html.bak_before_total_pending_fix
+?? static/sw.js.bak
+?? static/sw.js.bak_v2
+===== DIFF CHECK =====
+===== DIFF STAT =====
+ static/offline-db.js   |  33 ++++
+ static/offline-sync.js |  73 +++++++-
+ static/offline.html    | 466 ++++++++++++++++++++++++++++++++++++++++++++-----
+ static/sw.js           |  79 ++++++---
+ 4 files changed, 580 insertions(+), 71 deletions(-)

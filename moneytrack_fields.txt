@@ -1,0 +1,132 @@
+1549:            <label>Выбери месяц</label>
+1550:            <input type="month" name="month"
+1629:        <input name="contact"
+1633:        <input name="password" type="password"
+1699:        <input name="login"  required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+1700:        <input name="password" type="password"
+1837:            <label>Тип операции</label>
+1838:            <select name="kind" id="operationKind" required>
+1849:            <label>Счёт</label>
+1850:            <select name="account_id" id="account-select" required>
+1865:                <label>Название нового счёта</label>
+1866:                <input name="new_account_name" id="new-account-name"
+1869:                <label>Начальный баланс, ₽</label>
+1870:                <input name="new_account_balance" id="new-account-balance"
+1878:            <label>Сумма</label>
+1879:            <input name="amount" type="number" min="0.01"
+1882:            <label>Категория</label>
+1884:                <select name="category" id="operationCategory"
+1891:            <label>Комментарий</label>
+1892:            <input name="note" maxlength="200" >
+2146:            <label>Тип операции</label>
+2147:            <select name="kind" id="operationKind" required>
+2158:            <label>Сумма</label>
+2159:            <input name="amount" type="number" min="0.01" step="0.01"
+2162:            <label>Категория</label>
+2163:            <select name="category" id="operationCategory" required></select>
+2165:            <label>Комментарий</label>
+2166:            <input name="note" maxlength="200"
+2416:                        <input type="hidden" name="action" value="update_name">
+2417:                        <input type="hidden" name="account_id" value="{{ account["id"] }}">
+2418:                        <label>Название счёта</label>
+2419:                        <input name="name" value="{{ account["name"] }}" maxlength="60" required>
+2423:                        <input type="hidden" name="action" value="delete">
+2424:                        <input type="hidden" name="account_id" value="{{ account["id"] }}">
+2428:                        <input type="hidden" name="action" value="update_balance">
+2429:                        <input type="hidden" name="account_id" value="{{ account["id"] }}">
+2430:                        <label>Баланс</label>
+2431:                        <input name="balance" type="number" step="0.01" value="{{ account["balance"] }}" required>
+2443:        <input name="name"  required>
+2444:        <input name="balance" type="number" step="0.01"
+2592:            <label>Тип долга</label>
+2593:            <select name="direction" required>
+2597:            <label>Кому или от кого</label>
+2598:            <input name="person" maxlength="100" required>
+2599:            <label>Сумма в рублях</label>
+2600:            <input name="amount" type="number" min="0.01" step="0.01" required>
+2601:            <label>Комментарий</label>
+2602:            <input name="note" maxlength="200">
+2620:                    <input type="hidden" name="action" value="repay">
+2621:                    <input type="hidden" name="debt_id" value="{{ d.id }}">
+2622:                    <label>Сумма погашения, ₽</label>
+2623:                    <input name="payment_amount" type="number"
+2627:                    <label>Счёт</label>
+2628:                    <select name="account_id" required>
+2769:            <label>Название актива</label>
+2770:            <input name="name" maxlength="100"
+2773:            <label>Тип актива</label>
+2775:                <select name="asset_type" id="assetType" style="flex:1;min-width:0;" required>
+2784:            <label>С какого счёта вложить деньги</label>
+2785:            <select name="account_id" required>
+2794:            <label>Вложенная сумма, ₽</label>
+2795:            <input name="amount" type="number" min="0.01"
+2798:            <label>Текущая стоимость, ₽</label>
+2799:            <input name="current_value" type="number" min="0"
+2802:            <label>Комментарий</label>
+2803:            <input name="note" maxlength="200">
+2866:                    <label>С какого счёта</label>
+2867:                    <select name="account_id" required>
+2875:                    <label>Сумма пополнения, ₽</label>
+2876:                    <input name="amount" type="number" min="0.01"
+3042:            <label>Название актива</label>
+3043:            <input name="name" maxlength="100"
+3046:            <label>Тип актива</label>
+3048:            <select name="asset_type" id="assetType" style="flex:1;min-width:0;" required>
+3060:            <label>Вложенная сумма, ₽</label>
+3064:            <label>Текущая стоимость, ₽</label>
+3065:            <input name="current_value" type="number" min="0"
+3068:            <label>Комментарий</label>
+3069:            <input name="note" maxlength="200" value="{{ item.note or '' }}">
+3269:            <label>Категория</label>
+3270:            <select name="category" required>
+3276:            <label>Лимит на месяц, ₽</label>
+3277:            <input name="amount" type="number"
+3473:            <input type="hidden" name="action" value="create">
+3474:            <label>Название цели</label>
+3475:            <input name="name" maxlength="100"
+3477:            <label>Сколько нужно накопить, ₽</label>
+3478:            <input name="target_amount" type="number"
+3480:            <label>Желаемая дата (необязательно)</label>
+3481:            <input name="target_date" type="date">
+3508:                <input type="hidden" name="action" value="edit">
+3509:                <input type="hidden" name="goal_id" value="{{ g.id }}">
+3510:                <label>Название</label>
+3511:                <input name="name" maxlength="100" value="{{ g.name }}" required>
+3512:                <label>Целевая сумма, ₽</label>
+3513:                <input name="target_amount" type="number" min="0.01" step="0.01"
+3515:                <label>Желаемая дата</label>
+3516:                <input name="target_date" type="date" value="{{ g.target_date }}">
+3522:            <input type="hidden" name="action" value="add">
+3523:            <input type="hidden" name="goal_id" value="{{ g.id }}">
+3524:            <label>С какого счёта пополнить</label>
+3525:            <select name="account_id" required>
+3533:            <label>Добавить к накоплениям, ₽</label>
+3534:            <input name="amount" type="number" min="0.01" step="0.01" required>
+3541:                <input type="hidden" name="action" value="delete">
+3542:                <input type="hidden" name="goal_id" value="{{ g.id }}">
+3790:            <label>Название платежа</label>
+3791:            <input name="name"  required>
+3793:            <label>Сумма, ₽</label>
+3794:            <input name="amount" type="number"
+3797:            <label>Категория</label>
+3798:            <select name="category" required>
+3804:            <label>Периодичность</label>
+3805:            <select name="frequency" required>
+3811:            <label>Дата следующего платежа</label>
+3812:            <input name="next_date" type="date" required>
+3814:            <label>Примечание</label>
+3815:            <input name="note" >
+3844:                <label>Списать со счёта</label>
+3845:                <select name="account_id" required>
+3958:            <label>Название платежа</label>
+3959:            <input name="name" maxlength="100"
+3962:            <label>Сумма, ₽</label>
+3963:            <input name="amount" type="number" min="0.01" step="0.01"
+3966:            <label>Категория</label>
+3967:            <select name="category" required>
+3976:            <label>Периодичность</label>
+3977:            <select name="frequency" required>
+3992:            <label>Дата следующего платежа</label>
+3993:            <input name="next_date" type="date"
+3996:            <label>Примечание</label>
+3997:            <input name="note" maxlength="500"

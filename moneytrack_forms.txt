@@ -1,0 +1,144 @@
+1443:<button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:5px 8px;width:auto;margin-top:4px;">Удалить</button>                </form>
+1549:            <input type="month" name="month"
+1551:            <label>Выбери месяц</label>
+1552:            <button type="submit">Показать</button>
+1629:        <input name="contact" placeholder="Номер телефона или email"
+1633:        <input name="password" type="password" placeholder="Пароль (минимум 8 символов)"
+1636:        <button type="submit" class="auth-submit">Зарегистрироваться</button>
+1698:        <input name="login" placeholder="Номер телефона или email" required style="width: 56%; display: block; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+1699:        <input name="password" type="password" placeholder="Пароль"
+1701:        <button type="submit" class="auth-submit">Войти</button>
+1801:                    <button type="submit" style="width:auto;margin:0;padding:6px 10px;">
+1836:            <select name="kind" id="operationKind" required>
+1846:            <label>Тип операции</label>
+1848:            <select name="account_id" id="account-select" required>
+1861:            <label>Счёт</label>
+1864:                <input name="new_account_name" id="new-account-name"
+1867:                <label>Начальный баланс, ₽</label>
+1868:                <input name="new_account_balance" id="new-account-balance"
+1871:                <button type="submit" name="action" value="create_account"
+1876:            <input name="amount" type="number" min="0.01"
+1879:            <label>Категория</label>
+1881:                <select name="category" id="operationCategory"
+1883:                <button type="button" id="addCategoryButton"
+1888:            <input name="note" maxlength="200"  placeholder="Комментарий">
+1890:            <button type="submit"
+2142:            <select name="kind" id="operationKind" required>
+2152:            <label>Тип операции</label>
+2154:            <input name="amount" type="number" min="0.01" step="0.01"
+2156:            <label>Сумма</label>
+2158:            <select name="category" id="operationCategory" required></select>
+2159:            <label>Категория</label>
+2161:            <input name="note" maxlength="200"
+2163:            <label>Комментарий</label>
+2165:            <button type="submit">Сохранить изменения</button>
+2169:            <button type="submit"
+2412:                        <input type="hidden" name="action" value="update_name">
+2413:                        <input type="hidden" name="account_id" value="{{ account["id"] }}">
+2414:                        <input name="name" value="{{ account["name"] }}" maxlength="60" required>
+2415:                        <label>Название счёта</label>
+2416:                        <button type="submit">Сохранить название</button>
+2419:                        <input type="hidden" name="action" value="delete">
+2420:                        <input type="hidden" name="account_id" value="{{ account["id"] }}">
+2421:                        <button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:5px 8px;width:auto;margin-top:4px;">Удалить счёт</button>
+2424:                        <input type="hidden" name="action" value="update_balance">
+2425:                        <input type="hidden" name="account_id" value="{{ account["id"] }}">
+2426:                        <input name="balance" type="number" step="0.01" value="{{ account["balance"] }}" required>
+2427:                        <label>Баланс</label>
+2428:                        <button type="submit">Сохранить баланс</button>
+2439:        <input name="name"  required>
+2440:        <input name="balance" type="number" step="0.01"
+2442:        <button>Добавить</button>
+2588:            <select name="direction" required>
+2592:            <label>Тип долга</label>
+2593:            <input name="person" maxlength="100" required placeholder="Кому или от кого">
+2594:            <input name="amount" type="number" min="0.01" step="0.01" required placeholder="Сумма в рублях">
+2595:            <input name="note" maxlength="200" placeholder="Комментарий">
+2596:            <button type="submit">Добавить долг</button>
+2613:                    <input type="hidden" name="action" value="repay">
+2614:                    <input type="hidden" name="debt_id" value="{{ d.id }}">
+2615:                    <input name="payment_amount" type="number"
+2619:                    <select name="account_id" required>
+2629:                    <label>Счёт</label>
+2630:                    <button type="submit">Записать погашение</button>
+2761:            <input name="name" maxlength="100"
+2764:            <label>Тип актива</label>
+2766:                <select name="asset_type" id="assetType" style="flex:1;min-width:0;" required>
+2771:                <button type="button" id="addAssetType"
+2775:            <select name="account_id" required>
+2783:            <label>С какого счёта вложить деньги</label>
+2785:            <input name="amount" type="number" min="0.01"
+2788:            <input name="current_value" type="number" min="0"
+2791:            <input name="note" maxlength="200" placeholder="Комментарий">
+2793:            <button type="submit" style="width:auto;padding:8px 16px;font-size:14px;margin-top:8px;">Добавить инвестицию</button>
+2854:                    <select name="account_id" required>
+2862:                    <label>С какого счёта</label>
+2863:                    <input name="amount" type="number" min="0.01"
+2865:                    <button type="submit">Пополнить</button>
+2880:                    <button type="submit" style="background:#dc2626;color:white;font-size:12px;padding:6px 10px;width:auto;margin:0;">Удалить</button>
+3029:            <input name="name" maxlength="100"
+3031:            <label>Название актива</label>
+3033:            <label>Тип актива</label>
+3035:            <select name="asset_type" id="assetType" style="flex:1;min-width:0;" required>
+3043:            <button type="button" id="addAssetType"
+3047:            <label>Вложенная сумма, ₽</label>
+3051:            <input name="current_value" type="number" min="0"
+3053:            <label>Текущая стоимость, ₽</label>
+3055:            <input name="note" maxlength="200" value="{{ item.note or '' }}">
+3056:            <label>Комментарий</label>
+3058:            <button type="submit">Сохранить изменения</button>
+3256:            <select name="category" required>
+3261:            <label>Категория</label>
+3263:            <input name="amount" type="number"
+3266:            <button type="submit">Сохранить бюджет</button>
+3459:            <input type="hidden" name="action" value="create">
+3460:            <input name="name" maxlength="100"
+3462:            <input name="target_amount" type="number"
+3464:            <input name="target_date" type="date">
+3465:            <label>Желаемая дата (необязательно)</label>
+3466:            <button type="submit">Создать цель</button>
+3492:                <input type="hidden" name="action" value="edit">
+3493:                <input type="hidden" name="goal_id" value="{{ g.id }}">
+3494:                <input name="name" maxlength="100" value="{{ g.name }}" required>
+3495:                <label>Название</label>
+3496:                <input name="target_amount" type="number" min="0.01" step="0.01"
+3498:                <label>Целевая сумма, ₽</label>
+3499:                <input name="target_date" type="date" value="{{ g.target_date }}">
+3500:                <label>Желаемая дата</label>
+3501:                <button type="submit">Сохранить изменения</button>
+3506:            <input type="hidden" name="action" value="add">
+3507:            <input type="hidden" name="goal_id" value="{{ g.id }}">
+3508:            <select name="account_id" required>
+3516:            <label>С какого счёта пополнить</label>
+3517:            <input name="amount" type="number" min="0.01" step="0.01" required placeholder="Добавить к накоплениям, ₽">
+3521:            <button type="submit" form="goal-add-{{ g.id }}">Добавить накопления</button>
+3524:                <input type="hidden" name="action" value="delete">
+3525:                <input type="hidden" name="goal_id" value="{{ g.id }}">
+3526:                <button type="submit" class="btn-danger">Удалить цель</button>
+3773:            <input name="name"  required placeholder="Название платежа">
+3775:            <input name="amount" type="number"
+3778:            <select name="category" required>
+3783:            <label>Категория</label>
+3785:            <select name="frequency" required>
+3790:            <label>Периодичность</label>
+3792:            <input name="next_date" type="date" required>
+3793:            <label>Дата следующего платежа</label>
+3795:            <input name="note"  placeholder="Примечание">
+3797:            <button type="submit">Добавить платеж</button>
+3824:                <select name="account_id" required>
+3832:                <label>Списать со счёта</label>
+3833:                <button type="submit">Оплатить</button>
+3854:                    <button type="submit" class="btn-danger">Удалить</button>
+3938:            <input name="name" maxlength="100"
+3940:            <label>Название платежа</label>
+3942:            <input name="amount" type="number" min="0.01" step="0.01"
+3944:            <label>Сумма, ₽</label>
+3946:            <select name="category" required>
+3954:            <label>Категория</label>
+3956:            <select name="frequency" required>
+3970:            <label>Периодичность</label>
+3972:            <input name="next_date" type="date"
+3974:            <label>Дата следующего платежа</label>
+3976:            <input name="note" maxlength="500"
+3978:            <label>Примечание</label>
+3980:            <button type="submit">Сохранить изменения</button>

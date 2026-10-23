@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка MoneyTrack Offline</title>
+<h2>Проверка офлайн-хранилища</h2>
+<pre id="result">Проверка выполняется...</pre>
+<script src="/static/offline-db.js"></script>
+<script>
+(async function () {
+  const out = document.getElementById("result");
+  try {
+    const db = window.MoneyTrackOfflineDB;
+    if (!db) throw new Error("Скрипт не загрузился");
+    const user = "offline-test-only";
+    const testData = { test: true, value: 123 };
+    await db.saveSnapshot(user, testData);
+    const snapshot = await db.getSnapshot(user);
+    const id = await db.enqueueChange(user, {
+      action: "test_only",
+      value: 123
+    });
+    const pending = await db.getPendingChanges(user);
+    await db.removePendingChange(id);
+    await db.clearSnapshot(user);
+    out.textContent =
+      "УСПЕХ: функции снимка и очереди работают.\n" +
+      "Снимок прочитан: " + !!snapshot + "\n" +
+      "Тестовая запись в очереди: " + pending.length + "\n" +
+      "Тестовые данные удалены.";
+  } catch (e) {
+    out.textContent = "ОШИБКА: " + (e.message || e);
+  }
+})();
+</script>
+</html>

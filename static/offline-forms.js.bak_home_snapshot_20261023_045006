@@ -1,0 +1,172 @@
+(function () {
+    "use strict";
+
+    function makeId() {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+            return "offline-" + window.crypto.randomUUID();
+        }
+        return "offline-" + Date.now() + "-" +
+            Math.random().toString(36).slice(2);
+    }
+
+    function notify(message) {
+        alert(message);
+    }
+
+    async function showQueuedOperations() {
+        const db = window.MoneyTrackOfflineDB;
+        const userId = localStorage.getItem("moneytrack-offline-user-id");
+        if (!db || !userId || typeof db.getPendingChanges !== "function") return;
+
+        const pending = await db.getPendingChanges(userId);
+        const changes = pending
+            .map(item => item.change)
+            .filter(change => change && change.action === "create_transaction");
+
+        let panel = document.getElementById("offline-pending-operations");
+        if (!changes.length) {
+            if (panel) panel.remove();
+            return;
+        }
+
+        if (!panel) {
+            panel = document.createElement("section");
+            panel.id = "offline-pending-operations";
+            panel.className = "card";
+            panel.style.margin = "12px 0";
+            const main = document.querySelector("main") || document.querySelector(".container") || document.body;
+            main.prepend(panel);
+        }
+
+        panel.replaceChildren();
+        const heading = document.createElement("h3");
+        heading.textContent = "Операции, сохранённые на устройстве";
+        panel.appendChild(heading);
+
+        let incomeTotal = 0;
+        let expenseTotal = 0;
+
+        changes.forEach(change => {
+            const amount = Number(change.amount) || 0;
+            if (change.kind === "income") incomeTotal += amount;
+            else expenseTotal += amount;
+
+            const row = document.createElement("p");
+            const kind = change.kind === "income" ? "Доход" : "Расход";
+            row.textContent = kind + ": " + amount.toLocaleString("ru-RU") +
+                " ₽ · " + change.category + (change.note ? " · " + change.note : "");
+            panel.appendChild(row);
+        });
+
+        const summary = document.createElement("p");
+        summary.textContent = "Доходы: +" + incomeTotal.toLocaleString("ru-RU") +
+            " ₽ · Расходы: −" + expenseTotal.toLocaleString("ru-RU") + " ₽";
+        panel.appendChild(summary);
+    }
+
+    window.MoneyTrackRefreshOfflineQueue = showQueuedOperations;
+
+    window.addEventListener("online", () => {
+        setTimeout(showQueuedOperations, 1200);
+    });
+
+    window.addEventListener("offline", showQueuedOperations);
+    window.addEventListener("moneytrack-queue-updated", showQueuedOperations);
+
+    window.addEventListener("DOMContentLoaded", showQueuedOperations);
+
+    document.addEventListener("submit", async function (event) {
+        const form = event.target;
+
+        if (!(form instanceof HTMLFormElement)) return;
+
+        const url = new URL(form.action || window.location.href);
+        if (url.pathname !== "/add" || form.method.toLowerCase() !== "post") {
+            return;
+        }
+
+        const submitter = event.submitter;
+
+        // Создание счёта оставляем штатному обработчику.
+        if (
+            (submitter && submitter.name === "action" &&
+             submitter.value === "create_account") ||
+            (form.elements.account_id &&
+             form.elements.account_id.value === "__add__")
+        ) {
+            if (!navigator.onLine) {
+                event.preventDefault();
+                notify("Для создания нового счёта необходимо подключение к интернету.");
+            }
+            return;
+        }
+
+        // При наличии сети используем обычную форму без изменений.
+        if (navigator.onLine) return;
+
+        event.preventDefault();
+
+        const db = window.MoneyTrackOfflineDB;
+        if (!db || typeof db.enqueueChange !== "function") {
+            notify("Офлайн-сохранение пока недоступно. Откройте приложение с интернетом и попробуйте снова.");
+            return;
+        }
+
+        const userId = localStorage.getItem("moneytrack-offline-user-id");
+        if (!userId) {
+            notify("Сначала откройте MoneyTrack с интернетом, чтобы подготовить офлайн-режим.");
+            return;
+        }
+
+        const kind = form.elements.kind?.value;
+        const accountId = Number(form.elements.account_id?.value);
+        const amount = Number(form.elements.amount?.value);
+        const category = form.elements.category?.value;
+        const note = form.elements.note?.value || "";
+
+        if (
+            !["income", "expense"].includes(kind) ||
+            !Number.isFinite(accountId) ||
+            accountId <= 0 ||
+            !Number.isFinite(amount) ||
+            amount <= 0 ||
+            !category
+        ) {
+            notify("Проверьте сумму, счёт и категорию.");
+            return;
+        }
+
+        const change = {
+            action: "create_transaction",
+            client_change_id: makeId(),
+            kind: kind,
+            account_id: accountId,
+            amount: amount,
+            category: category,
+            note: note,
+            created_at: new Date().toISOString()
+        };
+
+        try {
+            await db.enqueueChange(userId, change);
+
+            const panel = document.getElementById("offline-pending-operations");
+            if (panel) panel.remove();
+
+            const message = document.createElement("p");
+            message.className = "card";
+            message.setAttribute("role", "status");
+            message.textContent = "Операция сохранена на устройстве и будет отправлена при подключении к интернету.";
+            form.insertAdjacentElement("afterend", message);
+
+            form.reset();
+
+            if (typeof window.MoneyTrackRefreshOfflineQueue === "function") {
+                await window.MoneyTrackRefreshOfflineQueue();
+            }
+        } catch (error) {
+            console.error("Offline save failed:", error);
+            notify("Не удалось сохранить операцию на устройстве. Попробуйте ещё раз.");
+        }
+    }, true);
+})();

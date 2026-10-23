@@ -1,0 +1,91 @@
+(function () {
+  "use strict";
+
+  const STATUS_KEY = "moneytrack-offline-status";
+
+  function setStatus(state) {
+    try {
+      sessionStorage.setItem(STATUS_KEY, JSON.stringify({
+        state: state,
+        checkedAt: new Date().toISOString()
+      }));
+    } catch (_) {}
+  }
+
+  async function saveServerSnapshot() {
+    if (!navigator.onLine || !window.MoneyTrackOfflineDB) {
+      setStatus("offline-or-storage-unavailable");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/offline/snapshot", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Accept": "application/json" }
+      });
+
+      if (!response.ok) {
+        setStatus("server-response-" + response.status);
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.ok && result.data) {
+        if (result.user_id === undefined || result.user_id === null) {
+          setStatus("missing-user-id");
+          return;
+        }
+        await window.MoneyTrackOfflineDB.saveSnapshot(result.user_id, result.data);
+        try {
+          localStorage.setItem("moneytrack-offline-user-id", String(result.user_id));
+        } catch (_) {}
+        setStatus("saved");
+        console.info("MoneyTrack: снимок сохранён локально");
+      } else {
+        setStatus("snapshot-unavailable");
+      }
+    } catch (_) {
+      setStatus("save-failed");
+      console.info("MoneyTrack: локальное сохранение пока недоступно");
+    }
+  }
+
+  window.MoneyTrackOfflineStatus = {
+    get: function () {
+      try {
+        return JSON.parse(sessionStorage.getItem(STATUS_KEY) || "null");
+      } catch (_) {
+        return null;
+      }
+    },
+    checkSavedSnapshot: async function (userId) {
+      try {
+        if (userId === undefined || userId === null) {
+          return { exists: false, error: "user-id-required" };
+        }
+        const snapshot = await window.MoneyTrackOfflineDB.getSnapshot(userId);
+        return snapshot ? {
+          exists: true,
+          savedAt: snapshot.savedAt,
+          sections: Object.keys(snapshot.data || {}).length
+        } : { exists: false };
+      } catch (_) {
+        return { exists: false, error: "read-failed" };
+      }
+    }
+  };
+
+  window.addEventListener("online", saveServerSnapshot);
+  window.addEventListener("load", function () {
+    if (location.pathname === "/login") {
+      try {
+        localStorage.removeItem("moneytrack-offline-user-id");
+      } catch (_) {}
+    } else {
+      saveServerSnapshot();
+    }
+  });
+})();

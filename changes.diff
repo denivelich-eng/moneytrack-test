@@ -1,0 +1,1029 @@
+diff --git a/app.py b/app.py
+index 5ee9192..47a2c0d 100644
+--- a/app.py
++++ b/app.py
+@@ -1,3 +1,4 @@
++import math
+ import os
+ import re
+ import sqlite3
+@@ -1186,17 +1187,36 @@ def add_transaction():
+             </select>
+ 
+             <label>Счёт</label>
+-            <select name="account_id" required>
+-                <option value="" disabled selected>
++            <select name="account_id" id="account-select" required
++                >
++                <option value="" disabled
++                    {% if not request.args.get('account_id') %}selected{% endif %}>
+                     Выбери счёт
+                 </option>
+                 {% for a in accounts %}
+-                    <option value="{{a.id}}">
++                    <option value="{{a.id}}"
++                        {% if request.args.get('account_id')|string == a.id|string %}selected{% endif %}>
+                         {{a.name}} — {{a.balance|round(2)}} ₽
+                     </option>
+                 {% endfor %}
++                <option value="__add__">＋ Добавить счёт</option>
+             </select>
+ 
++            <div id="new-account-fields" hidden
++                style="margin:10px 0; padding:12px; border:1px solid var(--border-color, #ccc); border-radius:12px;">
++                <label>Название нового счёта</label>
++                <input id="new_account_name" name="new_account_name" maxlength="60"
++                    placeholder="Например, Основной">
++
++                <label>Начальный баланс, ₽</label>
++                <input name="new_account_balance" type="number"
++                    step="0.01" value="0">
++
++                <button type="submit" name="action" value="create_account" formnovalidate>
++                    Создать счёт
++                </button>
++            </div>
++
+             <label>Сумма</label>
+             <input name="amount" type="number" min="0.01"
+                    step="0.01" placeholder="Сумма в рублях" required>
+@@ -1216,9 +1236,70 @@ def add_transaction():
+         </form>
+         <a href="/">Назад</a>
+     </div>
++    <script>
++    (() => {
++        const accountSelect = document.getElementById('account-select');
++        const fields = document.getElementById('new-account-fields');
++        const nameInput = document.getElementById('new_account_name');
++        const balanceInput = document.querySelector('[name="new_account_balance"]');
++
++        function updateAccountFields() {
++            const adding = accountSelect.value === '__add__';
++            fields.hidden = !adding;
++            nameInput.required = adding;
++            balanceInput.required = adding;
++            if (adding) nameInput.focus();
++        }
++
++        accountSelect.addEventListener('change', updateAccountFields);
++        updateAccountFields();
++    })();
++    </script>
+     """
+ 
+     if request.method == "POST":
++        if request.form.get("action") == "create_account":
++            name = request.form.get("new_account_name", "").strip()
++            try:
++                balance = float(request.form.get("new_account_balance", "0"))
++                if not name or len(name) > 60 or not math.isfinite(balance):
++                    raise ValueError
++            except (ValueError, TypeError):
++                flash("Укажи название счёта и корректный начальный баланс.")
++                return redirect(url_for(
++                    "add_transaction",
++                    kind=request.form.get("kind", "expense")
++                ))
++
++            with connect_db() as db:
++                account_count = db.execute(
++                    "SELECT COUNT(*) FROM accounts WHERE user_id=?",
++                    (user["id"],)
++                ).fetchone()[0]
++
++                if account_count >= 2 and not has_access(user):
++                    flash("На бесплатном тарифе можно иметь максимум 2 счёта. Удали один из счетов или подключи подписку.")
++                    return redirect(url_for("accounts"))
++
++                result = db.execute("""
++                    INSERT INTO accounts (user_id, name, balance)
++                    VALUES (?, ?, ?)
++                """, (user["id"], name, balance))
++                new_account_id = result.lastrowid
++
++            return redirect(url_for(
++                "add_transaction",
++                kind=request.form.get("kind", "expense"),
++                account_id=new_account_id
++            ))
++
++        if request.form.get("account_id") == "__add__":
++            flash("Заполни данные нового счёта и нажми «Создать счёт».")
++            return redirect(url_for(
++                "add_transaction",
++                kind=request.form.get("kind", "expense")
++            ))
++
+         try:
+             amount = float(request.form.get("amount", "0"))
+             kind = request.form.get("kind", "")
+@@ -1235,13 +1316,21 @@ def add_transaction():
+ 
+             with connect_db() as db:
+                 account = db.execute("""
+-                    SELECT id FROM accounts
++                    SELECT id, balance FROM accounts
+                     WHERE id=? AND user_id=?
+                 """, (account_id, user["id"])).fetchone()
+ 
+                 if account is None:
+                     raise ValueError
+ 
++                if kind == "expense" and amount > (account["balance"] or 0):
++                    flash("Недостаточно средств на выбранном счёте.")
++                    return redirect(url_for(
++                        "add_transaction",
++                        kind=kind,
++                        account_id=account_id
++                    ))
++
+                 db.execute("""
+                     INSERT INTO transactions
+                     (user_id, kind, amount, category, note,
+diff --git a/app_postgres.py b/app_postgres.py
+index 359d685..38a2dfd 100644
+--- a/app_postgres.py
++++ b/app_postgres.py
+@@ -1,4 +1,5 @@
+ import os
++import math
+ import re
+ import sqlite3
+ 
+@@ -885,6 +886,133 @@ button {
+     }
+ }
+ 
++
++
++/* MONEYTRACK UNIFIED BUTTONS V2 */
++button {
++    box-sizing: border-box;
++    min-height: 44px !important;
++    padding: 10px 14px !important;
++    margin: 8px 0;
++    border-radius: 12px !important;
++    font-family: inherit !important;
++    font-size: 14px !important;
++    font-weight: 700 !important;
++    line-height: 1.2 !important;
++    cursor: pointer;
++    transition: filter 0.15s ease, transform 0.15s ease;
++}
++
++button:not(.btn-danger):not([style*="#dc2626"]) {
++    background: #34D399;
++    color: #052E2B;
++    border: 1px solid #34D399;
++}
++
++button:hover,
++a.primary-link:hover,
++.card a[href*="edit"]:hover {
++    filter: brightness(1.12);
++}
++
++button:active,
++a.primary-link:active,
++.card a[href*="edit"]:active {
++    transform: scale(0.98);
++}
++
++button.btn-danger,
++.btn-danger,
++button[style*="#dc2626"],
++button[style*="#DC2626"] {
++    background: #40202D !important;
++    color: #FB7185 !important;
++    border: 1px solid #FB7185 !important;
++}
++
++a.primary-link,
++a.btn-secondary,
++.btn-secondary,
++.card a[href*="edit"],
++.card a[href*="edit_investment"],
++.card a[href*="investment_history"] {
++    display: inline-flex;
++    align-items: center;
++    justify-content: center;
++    box-sizing: border-box;
++    min-height: 44px;
++    padding: 10px 14px;
++    border-radius: 12px;
++    background: #1C2940;
++    color: #F1F5F9;
++    border: 1px solid #2A3850;
++    font-family: inherit;
++    font-size: 14px;
++    font-weight: 700;
++    line-height: 1.2;
++    text-decoration: none;
++    cursor: pointer;
++    transition: filter 0.15s ease, transform 0.15s ease;
++}
++
++.button-row {
++    display: flex;
++    gap: 8px;
++    align-items: stretch;
++    width: 100%;
++}
++
++.button-row > form,
++.button-row > a {
++    flex: 1 1 0;
++    min-width: 0;
++    margin: 0;
++}
++
++.button-row > button {
++    flex: 1 1 0;
++    min-width: 0;
++}
++
++.button-row > form > button,
++.button-row > a {
++    width: 100%;
++    min-height: 44px;
++    margin: 0;
++}
++
++#addCategoryButton,
++#addAssetType {
++    width: 44px !important;
++    min-width: 44px;
++    min-height: 44px !important;
++    padding: 0 !important;
++    flex: 0 0 44px;
++}
++
++@media (max-width: 360px) {
++    .button-row {
++        gap: 6px;
++    }
++
++    .button-row > form > button,
++    .button-row > a {
++        padding: 9px 6px !important;
++        font-size: 12px !important;
++    }
++}
++
++
++/* MONEYTRACK DELETE BUTTON OVERRIDE V1 */
++button[style*="#dc2626"],
++button[style*="#DC2626"],
++button.btn-danger,
++.btn-danger {
++    background: #40202D !important;
++    color: #FB7185 !important;
++    border: 1px solid #FB7185 !important;
++}
++
+ </style>
+ """
+ 
+@@ -998,6 +1126,36 @@ def index():
+             SELECT * FROM accounts WHERE user_id=?
+         """, (user["id"],)).fetchall()
+ 
++        reminder_today = datetime.now().date()
++        reminder_until = reminder_today + timedelta(days=7)
++
++        reminder_rows = db.execute("""
++            SELECT id, name, amount, next_date
++            FROM recurring_payments
++            WHERE user_id=?
++              AND active=1
++              AND next_date>=?
++              AND next_date<=?
++            ORDER BY next_date ASC
++        """, (
++            user["id"],
++            reminder_today.strftime("%Y-%m-%d"),
++            reminder_until.strftime("%Y-%m-%d")
++        )).fetchall()
++
++        upcoming_payments = []
++        for payment in reminder_rows:
++            due_date = datetime.strptime(
++                str(payment["next_date"]), "%Y-%m-%d"
++            ).date()
++            upcoming_payments.append({
++                "id": payment["id"],
++                "name": payment["name"],
++                "amount": payment["amount"],
++                "next_date": due_date.strftime("%d.%m.%Y"),
++                "days_left": (due_date - reminder_today).days
++            })
++
+         accounts_total = sum(
+             (account["balance"] or 0) for account in accounts
+         )
+@@ -1093,6 +1251,31 @@ def index():
+         chart_gradient = ", ".join(segments)
+ 
+     content = """
++    {% if upcoming_payments %}
++    <div class="card" style="border:1px solid #F59E0B;">
++        <h3>Предстоящий платёж</h3>
++        {% for p in upcoming_payments %}
++        <div style="padding:10px 0;border-bottom:1px solid #2A3850;">
++            <strong>{{ p.name }}</strong>
++            <div class="small">
++                Дата: {{ p.next_date }}
++                {% if p.days_left == 0 %}
++                    — сегодня
++                {% elif p.days_left == 1 %}
++                    — завтра
++                {% else %}
++                    — через {{ p.days_left }} дн.
++                {% endif %}
++            </div>
++            <div class="amount">{{ p.amount|round(2) }} ₽</div>
++        </div>
++        {% endfor %}
++        <a class="primary-link" href="/recurring">
++            Все обязательные платежи →
++        </a>
++    </div>
++    {% endif %}
++
+     <div class="card balance-card">
+         <div class="small">Общий баланс</div>
+         <div class="amount">{{balance|round(2)}} ₽</div>
+@@ -1196,6 +1379,7 @@ def index():
+      month_expense=month_expense,
+      month_balance=month_balance,
+      goal_list=goal_list,
++    upcoming_payments=upcoming_payments,
+     )
+ 
+ 
+@@ -1467,15 +1651,34 @@ def add_transaction():
+             </select>
+ 
+             <label>Счёт</label>
+-            <select name="account_id" required>
+-                <option value="" disabled selected>Выбери счёт</option>
++            <select name="account_id" id="account-select" required>
++                <option value="" disabled
++                    {% if not request.args.get('account_id') %}selected{% endif %}>
++                    Выбери счёт
++                </option>
+                 {% for a in accounts %}
+-                    <option value="{{a.id}}">
+-                        {{a.name}} — {{a.balance|round(2)}} ₽
++                    <option value="{{ a.id }}"
++                        {% if request.args.get('account_id', '')|string == a.id|string %}selected{% endif %}>
++                        {{ a.name }} — {{ a.balance|round(2) }} ₽
+                     </option>
+                 {% endfor %}
++                <option value="__add__">＋ Создать новый счёт</option>
+             </select>
+ 
++            <div id="new-account-fields" style="display:none;margin-top:10px;">
++                <label>Название нового счёта</label>
++                <input name="new_account_name" id="new-account-name"
++                       maxlength="60" placeholder="Например, Основная карта">
++
++                <label>Начальный баланс, ₽</label>
++                <input name="new_account_balance" id="new-account-balance"
++                       type="number" step="0.01" value="0" placeholder="0">
++
++                <button type="submit" name="action" value="create_account"
++                        formnovalidate>Создать счёт</button>
++                <small>После создания вернёшься к операции с выбранным счётом.</small>
++            </div>
++
+             <label>Сумма</label>
+             <input name="amount" type="number" min="0.01"
+                    step="0.01" placeholder="Сумма в рублях" required>
+@@ -1502,6 +1705,21 @@ def add_transaction():
+ 
+     <script>
+     (() => {
++        const accountSelect = document.getElementById('account-select');
++        const newAccountFields = document.getElementById('new-account-fields');
++        const newAccountName = document.getElementById('new-account-name');
++        const newAccountBalance = document.getElementById('new-account-balance');
++
++        function toggleNewAccountFields() {
++            const adding = accountSelect.value === '__add__';
++            newAccountFields.style.display = adding ? 'block' : 'none';
++            newAccountName.required = adding;
++            newAccountBalance.required = adding;
++        }
++
++        accountSelect.addEventListener('change', toggleNewAccountFields);
++        toggleNewAccountFields();
++
+         const kindSelect = document.getElementById('operationKind');
+         const categorySelect = document.getElementById('operationCategory');
+         const addButton = document.getElementById('addCategoryButton');
+@@ -1564,6 +1782,48 @@ def add_transaction():
+     """
+ 
+     if request.method == "POST":
++        if request.form.get("action") == "create_account":
++            name = request.form.get("new_account_name", "").strip()
++            try:
++                balance = float(request.form.get("new_account_balance", "0"))
++                if not name or len(name) > 60 or not math.isfinite(balance):
++                    raise ValueError
++            except (ValueError, TypeError):
++                flash("Укажи название счёта и корректный начальный баланс.")
++                return redirect(url_for(
++                    "add_transaction",
++                    kind=request.form.get("kind", "expense")
++                ))
++
++            with connect_db() as db:
++                account_count = db.execute(
++                    "SELECT COUNT(*) FROM accounts WHERE user_id=?",
++                    (user["id"],)
++                ).fetchone()[0]
++
++                if account_count >= 2 and not has_access(user):
++                    flash("На бесплатном тарифе можно иметь максимум 2 счёта. Удали один из счетов или подключи подписку.")
++                    return redirect(url_for("accounts"))
++
++                result = db.execute("""
++                    INSERT INTO accounts (user_id, name, balance)
++                    VALUES (?, ?, ?)
++                """, (user["id"], name, balance))
++                new_account_id = result.lastrowid
++
++            return redirect(url_for(
++                "add_transaction",
++                kind=request.form.get("kind", "expense"),
++                account_id=new_account_id
++            ))
++
++        if request.form.get("account_id") == "__add__":
++            flash("Заполни данные нового счёта и нажми «Создать счёт».")
++            return redirect(url_for(
++                "add_transaction",
++                kind=request.form.get("kind", "expense")
++            ))
++
+         try:
+             amount = float(request.form.get("amount", "0"))
+             kind = request.form.get("kind", "")
+@@ -1572,7 +1832,8 @@ def add_transaction():
+             account_id = int(request.form.get("account_id", "0"))
+ 
+             if (
+-                amount <= 0
++                not math.isfinite(amount)
++                or amount <= 0
+                 or kind not in ("income", "expense")
+                 or not category_is_valid(user["id"], kind, category)
+             ):
+@@ -1580,13 +1841,21 @@ def add_transaction():
+ 
+             with connect_db() as db:
+                 account = db.execute("""
+-                    SELECT id FROM accounts
++                    SELECT id, balance FROM accounts
+                     WHERE id=? AND user_id=?
+                 """, (account_id, user["id"])).fetchone()
+ 
+                 if account is None:
+                     raise ValueError
+ 
++                if kind == "expense" and amount > (account["balance"] or 0):
++                    flash("Недостаточно средств на выбранном счёте.")
++                    return redirect(url_for(
++                        "add_transaction",
++                        kind=kind,
++                        account_id=account_id
++                    ))
++
+                 db.execute("""
+                     INSERT INTO transactions
+                     (user_id, kind, amount, category, note, created, account_id)
+@@ -1763,7 +2032,8 @@ def edit_transaction(transaction_id):
+             note = request.form.get("note", "").strip()[:200]
+ 
+             if (
+-                amount <= 0
++                not math.isfinite(amount)
++                or amount <= 0
+                 or kind not in ("income", "expense")
+                 or not category_is_valid(user["id"], kind, category)
+             ):
+@@ -1776,7 +2046,31 @@ def edit_transaction(transaction_id):
+                         if transaction["kind"] == "income"
+                         else -transaction["amount"]
+                     )
+-                    new_change = amount if kind == "income" else -amount
++                    account = db.execute("""
++                        SELECT balance FROM accounts
++                        WHERE id=? AND user_id=?
++                    """, (
++                        transaction["account_id"],
++                        user["id"]
++                    )).fetchone()
++
++                    if account is None:
++                        raise ValueError
++
++                    if kind == "expense":
++                        available_balance = (
++                            (account["balance"] or 0) + old_change
++                        )
++
++                        if amount > available_balance:
++                            flash("Недостаточно средств на счёте для этой операции.")
++                            return page(
++                                "Редактировать операцию",
++                                content,
++                                transaction=transaction,
++                                categories_income=categories_income,
++                                categories_expense=categories_expense
++                            )
+ 
+                     db.execute("""
+                         UPDATE accounts
+@@ -2175,6 +2469,7 @@ def investments():
+         name = request.form.get("name", "").strip()
+         asset_type = request.form.get("asset_type", "").strip()
+         note = request.form.get("note", "").strip()
++        account_id = request.form.get("account_id", type=int, default=0)
+ 
+         try:
+             amount = float(request.form.get("amount", "0"))
+@@ -2195,6 +2490,17 @@ def investments():
+             flash("Проверь суммы инвестиций.")
+         else:
+             with connect_db() as db:
++                debited = db.execute("""
++                    UPDATE accounts
++                    SET balance = COALESCE(balance, 0) - ?
++                    WHERE id = ? AND user_id = ?
++                      AND COALESCE(balance, 0) >= ?
++                """, (amount, account_id, user["id"], amount))
++
++                if not debited.rowcount:
++                    flash("Выбери счёт с достаточным балансом.")
++                    return redirect(url_for("investments"))
++
+                 db.execute("""
+                     INSERT INTO investments
+                     (user_id, name, asset_type, amount,
+@@ -2224,6 +2530,10 @@ def investments():
+             "SELECT * FROM investments WHERE user_id=? ORDER BY id DESC",
+             (user["id"],)
+         ).fetchall()
++        accounts = db.execute(
++            "SELECT id, name, balance FROM accounts WHERE user_id=? ORDER BY id",
++            (user["id"],)
++        ).fetchall()
+ 
+     invested = sum(float(r["amount"]) for r in rows)
+     current_total = sum(float(r["current_value"] or 0) for r in rows)
+@@ -2269,6 +2579,16 @@ def investments():
+                         style="width:auto;padding:8px 14px;">+</button>
+             </div>
+ 
++            <label>С какого счёта вложить деньги</label>
++            <select name="account_id" required>
++                <option value="">Выбери счёт</option>
++                {% for account in accounts %}
++                <option value="{{ account.id }}">
++                    {{ account.name }} — {{ (account.balance or 0)|round(2) }} ₽
++                </option>
++                {% endfor %}
++            </select>
++
+             <label>Вложенная сумма, ₽</label>
+             <input name="amount" type="number" min="0.01"
+                    step="0.01" required>
+@@ -2336,6 +2656,27 @@ def investments():
+             {% if item.note %}
+                 <p class="small">{{ item.note }}</p>
+             {% endif %}
++
++            <details style="margin-top:10px;">
++                <summary>Пополнить инвестицию</summary>
++                <form method="post"
++                      action="{{ url_for('add_to_investment', investment_id=item.id) }}">
++                    <label>С какого счёта</label>
++                    <select name="account_id" required>
++                        <option value="">Выбери счёт</option>
++                        {% for account in accounts %}
++                        <option value="{{ account.id }}">
++                            {{ account.name }} — {{ (account.balance or 0)|round(2) }} ₽
++                        </option>
++                        {% endfor %}
++                    </select>
++                    <label>Сумма пополнения, ₽</label>
++                    <input name="amount" type="number" min="0.01"
++                           step="0.01" required>
++                    <button type="submit">Пополнить</button>
++                </form>
++            </details>
++
+             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;">
+                 <a class="primary-link"
+                    style="display:inline-block;margin:0;padding:6px 10px;font-size:12px;"
+@@ -2361,11 +2702,71 @@ def investments():
+         rows=rows, invested=invested,
+         current_total=current_total, profit=profit,
+         profit_percent=profit_percent,
+-        asset_types=get_user_categories(user["id"], "investment")
++        asset_types=get_user_categories(user["id"], "investment"),
++        accounts=accounts
+     )
+ 
+ 
+ 
++@app.route("/investments/add/<int:investment_id>", methods=["POST"])
++@login_required
++def add_to_investment(investment_id):
++    user = current_user()
++    if not has_access(user):
++        return redirect(url_for("plans"))
++
++    try:
++        amount = float(request.form.get("amount", "0"))
++        account_id = int(request.form.get("account_id", "0"))
++        if amount <= 0:
++            raise ValueError
++    except (ValueError, TypeError):
++        flash("Проверь сумму и выбранный счёт.")
++        return redirect(url_for("investments"))
++
++    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
++
++    with connect_db() as db:
++        item = db.execute("""
++            SELECT id, amount, current_value
++            FROM investments
++            WHERE id=? AND user_id=?
++        """, (investment_id, user["id"])).fetchone()
++
++        if item is None:
++            flash("Инвестиция не найдена.")
++            return redirect(url_for("investments"))
++
++        debited = db.execute("""
++            UPDATE accounts
++            SET balance = COALESCE(balance, 0) - ?
++            WHERE id=? AND user_id=?
++              AND COALESCE(balance, 0) >= ?
++        """, (amount, account_id, user["id"], amount))
++
++        if not debited.rowcount:
++            flash("Выбери счёт с достаточным балансом.")
++            return redirect(url_for("investments"))
++
++        new_amount = float(item["amount"]) + amount
++        new_value = float(item["current_value"] or 0) + amount
++
++        db.execute("""
++            UPDATE investments
++            SET amount=?, current_value=?
++            WHERE id=? AND user_id=?
++        """, (new_amount, new_value, investment_id, user["id"]))
++
++        db.execute("""
++            INSERT INTO investment_history
++            (investment_id, user_id, amount, current_value, recorded_at)
++            VALUES (?, ?, ?, ?, ?)
++        """, (investment_id, user["id"], new_amount, new_value, now))
++
++    flash("Деньги списаны со счёта, инвестиция пополнена.")
++    return redirect(url_for("investments"))
++
++
+ @app.route("/investments/edit/<int:investment_id>", methods=["GET", "POST"])
+ @login_required
+ def edit_investment(investment_id):
+@@ -2394,12 +2795,12 @@ def edit_investment(investment_id):
+         note = request.form.get("note", "").strip()
+ 
+         try:
+-            amount = float(request.form.get("amount", "0"))
+             current_value = float(request.form.get("current_value", "-1"))
+-        except ValueError:
+-            amount = 0
++        except (ValueError, TypeError):
+             current_value = -1
+ 
++        amount = float(item["amount"])
++
+         if not name or len(name) > 100:
+             flash("Укажи название до 100 символов.")
+         elif asset_type not in allowed_types:
+@@ -2451,8 +2852,8 @@ def edit_investment(investment_id):
+             </div>
+ 
+             <label>Вложенная сумма, ₽</label>
+-            <input name="amount" type="number" min="0.01"
+-                   step="0.01" value="{{ item.amount }}" required>
++            <p>{{ item.amount|round(2) }} ₽</p>
++            <p class="small">Изменяется автоматически при пополнении со счёта.</p>
+ 
+             <label>Текущая стоимость, ₽</label>
+             <input name="current_value" type="number" min="0"
+@@ -2750,22 +3151,41 @@ def goals():
+ 
+             elif action == "add":
+                 goal_id = int(request.form.get("goal_id", "0"))
++                account_id = int(request.form.get("account_id", "0"))
+                 amount = float(request.form.get("amount", "0"))
+ 
+                 if amount <= 0:
+                     raise ValueError
+ 
+                 with connect_db() as db:
+-                    result = db.execute(
+-                        "UPDATE financial_goals "
+-                        "SET saved_amount = saved_amount + ? "
+-                        "WHERE id = ? AND user_id = ?",
+-                        (amount, goal_id, user["id"])
+-                    )
+-                flash(
+-                    "Накопления обновлены."
+-                    if result.rowcount else "Цель не найдена."
+-                )
++                    goal = db.execute("""
++                        SELECT id FROM financial_goals
++                        WHERE id=? AND user_id=?
++                    """, (goal_id, user["id"])).fetchone()
++
++                    if goal is None:
++                        flash("Цель не найдена.")
++                    else:
++                        debited = db.execute("""
++                            UPDATE accounts
++                            SET balance = COALESCE(balance, 0) - ?
++                            WHERE id=? AND user_id=?
++                              AND COALESCE(balance, 0) >= ?
++                        """, (amount, account_id, user["id"], amount))
++
++                        if not debited.rowcount:
++                            flash("Выбери счёт с достаточным балансом.")
++                        else:
++                            result = db.execute("""
++                                UPDATE financial_goals
++                                SET saved_amount = saved_amount + ?
++                                WHERE id=? AND user_id=?
++                            """, (amount, goal_id, user["id"]))
++
++                            flash(
++                                "Накопления обновлены."
++                                if result.rowcount else "Цель не найдена."
++                            )
+ 
+             elif action == "edit":
+                 goal_id = int(request.form.get("goal_id", "0"))
+@@ -2816,6 +3236,10 @@ def goals():
+             "FROM financial_goals WHERE user_id = ? ORDER BY id DESC",
+             (user["id"],)
+         ).fetchall()
++        accounts = db.execute(
++            "SELECT id, name, balance FROM accounts WHERE user_id=? ORDER BY id",
++            (user["id"],)
++        ).fetchall()
+ 
+     goal_list = []
+ 
+@@ -2878,37 +3302,41 @@ def goals():
+                 <input type="hidden" name="action" value="edit">
+                 <input type="hidden" name="goal_id" value="{{ g.id }}">
+                 <label>Название</label>
+-                <input name="name" maxlength="100"
+-                       value="{{ g.name }}" required>
++                <input name="name" maxlength="100" value="{{ g.name }}" required>
+                 <label>Целевая сумма, ₽</label>
+-                <input name="target_amount" type="number"
+-                       min="0.01" step="0.01"
++                <input name="target_amount" type="number" min="0.01" step="0.01"
+                        value="{{ g.target_amount }}" required>
+                 <label>Желаемая дата</label>
+-                <input name="target_date" type="date"
+-                       value="{{ g.target_date }}">
++                <input name="target_date" type="date" value="{{ g.target_date }}">
+                 <button type="submit">Сохранить изменения</button>
+             </form>
+         </details>
+ 
+-        <form method="post" style="margin-top:12px;">
++        <form id="goal-add-{{ g.id }}" method="post" style="margin-top:12px;">
+             <input type="hidden" name="action" value="add">
+             <input type="hidden" name="goal_id" value="{{ g.id }}">
++            <label>С какого счёта пополнить</label>
++            <select name="account_id" required>
++                <option value="">Выбери счёт</option>
++                {% for account in accounts %}
++                <option value="{{ account.id }}">
++                    {{ account.name }} — {{ (account.balance or 0)|round(2) }} ₽
++                </option>
++                {% endfor %}
++            </select>
+             <label>Добавить к накоплениям, ₽</label>
+-            <input name="amount" type="number"
+-                   min="0.01" step="0.01" required>
+-            <button type="submit">Добавить накопления</button>
++            <input name="amount" type="number" min="0.01" step="0.01" required>
+         </form>
+ 
+-        <form method="post" style="margin-top:12px;"
+-              onsubmit="return confirm('Точно удалить эту цель?');">
+-            <input type="hidden" name="action" value="delete">
+-            <input type="hidden" name="goal_id" value="{{ g.id }}">
+-            <button type="submit"
+-                    style="background:#dc2626;color:white;">
+-                Удалить цель
+-            </button>
+-        </form>
++        <div class="button-row">
++            <button type="submit" form="goal-add-{{ g.id }}">Добавить накопления</button>
++            <form method="post"
++                  onsubmit="return confirm('Точно удалить эту цель?');">
++                <input type="hidden" name="action" value="delete">
++                <input type="hidden" name="goal_id" value="{{ g.id }}">
++                <button type="submit" class="btn-danger">Удалить цель</button>
++            </form>
++        </div>
+     </div>
+     {% else %}
+     <div class="card"><p>Пока нет целей. Создай первую выше.</p></div>
+@@ -2919,7 +3347,10 @@ def goals():
+     </div>
+     """
+ 
+-    return page("Финансовые цели", content, goal_list=goal_list)
++    return page(
++        "Финансовые цели", content,
++        goal_list=goal_list, accounts=accounts
++    )
+ 
+ @app.route("/more")
+ @login_required
+@@ -3228,6 +3659,16 @@ def recurring():
+             {% if p.note %}
+                 <p>{{p.note}}</p>
+             {% endif %}
++            <div class="button-row" style="margin-top:12px;">
++                <a class="primary-link"
++                   href="/recurring/edit/{{ p.id }}">Редактировать</a>
++                <form method="post"
++                      action="/recurring/delete/{{ p.id }}"
++                      onsubmit="return confirm('Удалить регулярный платёж «{{ p.name }}»?');">
++                    <button type="submit" class="btn-danger">Удалить</button>
++                </form>
++            </div>
++
+         </div>
+     {% else %}
+         <div class="card">
+@@ -3249,6 +3690,143 @@ def recurring():
+     )
+ 
+ 
++
++@app.route("/recurring/edit/<int:payment_id>", methods=["GET", "POST"])
++@login_required
++def edit_recurring(payment_id):
++    user = current_user()
++
++    if not has_access(user):
++        return redirect(url_for("plans"))
++
++    with connect_db() as db:
++        payment = db.execute("""
++            SELECT * FROM recurring_payments
++            WHERE id=? AND user_id=? AND active=1
++        """, (payment_id, user["id"])).fetchone()
++
++    if payment is None:
++        flash("Регулярный платёж не найден.")
++        return redirect(url_for("recurring"))
++
++    if request.method == "POST":
++        name = request.form.get("name", "").strip()
++        category = request.form.get("category", "").strip()
++        frequency = request.form.get("frequency", "").strip()
++        next_date = request.form.get("next_date", "").strip()
++        note = request.form.get("note", "").strip()
++
++        try:
++            amount = float(request.form.get("amount", "0"))
++            datetime.strptime(next_date, "%Y-%m-%d")
++
++            if (
++                not name
++                or amount <= 0
++                or not category_is_valid(user["id"], "expense", category)
++                or frequency not in ("monthly", "weekly", "yearly")
++            ):
++                raise ValueError
++
++            with connect_db() as db:
++                db.execute("""
++                    UPDATE recurring_payments
++                    SET name=?, amount=?, category=?, frequency=?,
++                        next_date=?, note=?
++                    WHERE id=? AND user_id=? AND active=1
++                """, (
++                    name, amount, category, frequency, next_date,
++                    note, payment_id, user["id"]
++                ))
++
++            flash("Регулярный платёж обновлён.")
++            return redirect(url_for("recurring"))
++
++        except (ValueError, TypeError):
++            flash("Проверь название, сумму, категорию и дату.")
++
++    content = """
++    <div class="card">
++        <h2>Редактирование платежа</h2>
++        <form method="post">
++            <label>Название платежа</label>
++            <input name="name" maxlength="100"
++                   value="{{ payment['name'] }}" required>
++
++            <label>Сумма, ₽</label>
++            <input name="amount" type="number" min="0.01" step="0.01"
++                   value="{{ payment['amount'] }}" required>
++
++            <label>Категория</label>
++            <select name="category" required>
++                {% for c in categories %}
++                <option value="{{ c }}"
++                    {% if c == payment['category'] %}selected{% endif %}>
++                    {{ c }}
++                </option>
++                {% endfor %}
++            </select>
++
++            <label>Периодичность</label>
++            <select name="frequency" required>
++                <option value="monthly"
++                    {% if payment['frequency'] == 'monthly' %}selected{% endif %}>
++                    Каждый месяц
++                </option>
++                <option value="weekly"
++                    {% if payment['frequency'] == 'weekly' %}selected{% endif %}>
++                    Каждую неделю
++                </option>
++                <option value="yearly"
++                    {% if payment['frequency'] == 'yearly' %}selected{% endif %}>
++                    Каждый год
++                </option>
++            </select>
++
++            <label>Дата следующего платежа</label>
++            <input name="next_date" type="date"
++                   value="{{ payment['next_date'] }}" required>
++
++            <label>Примечание</label>
++            <input name="note" maxlength="500"
++                   value="{{ payment['note'] or '' }}">
++
++            <button type="submit">Сохранить изменения</button>
++        </form>
++        <a class="primary-link" href="/recurring">Отмена</a>
++    </div>
++    """
++    return page(
++        "Редактирование платежа",
++        content,
++        categories=get_user_categories(user["id"], "expense"),
++        payment=payment
++    )
++
++
++@app.route("/recurring/delete/<int:payment_id>", methods=["POST"])
++@login_required
++def delete_recurring(payment_id):
++    user = current_user()
++
++    if not has_access(user):
++        return redirect(url_for("plans"))
++
++    with connect_db() as db:
++        result = db.execute("""
++            UPDATE recurring_payments
++            SET active=0
++            WHERE id=? AND user_id=? AND active=1
++        """, (payment_id, user["id"]))
++
++        if result.rowcount:
++            flash("Регулярный платёж удалён.")
++        else:
++            flash("Платёж не найден или уже удалён.")
++
++    return redirect(url_for("recurring"))
++
++
+ @app.route("/calendar/export.ics")
+ @login_required
+ def export_calendar():
